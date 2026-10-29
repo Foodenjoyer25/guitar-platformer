@@ -1,5 +1,7 @@
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
@@ -203,7 +205,7 @@ namespace GuitarPlatformer.EditorTools
                 "V / Y   camera view      Backspace / Select   respawn\n" +
                 "L   free play: walk-on / landing only\n" +
                 "M   palm mute      N   mute all strings\n" +
-                "Enter   start the riff campaign\n" +
+                "Esc / Start   menu      Enter / A   confirm\n" +
                 "\n" +
                 "CHORDS  F P5   J P5\u2193   E m3   R M3\n" +
                 "        T P4   Y M2   C m6   G M6\n" +
@@ -231,7 +233,7 @@ namespace GuitarPlatformer.EditorTools
             levelRect.anchorMax = new Vector2(0.5f, 1f);
             levelRect.pivot = new Vector2(0.5f, 1f);
             levelRect.anchoredPosition = new Vector2(0f, -24f);
-            levelRect.sizeDelta = new Vector2(760f, 132f);
+            levelRect.sizeDelta = new Vector2(760f, 158f);
             var levelImage = levelPanel.AddComponent<Image>();
             levelImage.color = new Color(0.015f, 0.01f, 0.04f, 0.72f);
             levelImage.raycastTarget = false;
@@ -254,6 +256,9 @@ namespace GuitarPlatformer.EditorTools
             Text levelMode = BuilderUtil.CreateText(levelPanel.transform, "LevelMode", "", 16,
                 TextAnchor.UpperRight, new Vector2(1f, 1f), new Vector2(-24f, -102f), new Vector2(300f, 24f),
                 dim, a.Font, FontStyle.Bold);
+            Text levelStatus = BuilderUtil.CreateText(levelPanel.transform, "LevelStatus", "", 17,
+                TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -128f), new Vector2(730f, 24f),
+                new Color(1f, 0.7f, 0.3f, 1f), a.Font, FontStyle.Bold);
 
             BuilderUtil.CreateText(canvasGo.transform, "CountLabel", "NOTES PLAYED", 16,
                 TextAnchor.UpperRight, new Vector2(1f, 1f), new Vector2(-48f, -38f), new Vector2(320f, 26f),
@@ -328,7 +333,9 @@ namespace GuitarPlatformer.EditorTools
             revealDimRect.offsetMax = Vector2.zero;
             var revealDim = revealDimGo.AddComponent<Image>();
             revealDim.color = new Color(0.005f, 0.004f, 0.015f, 0.84f);
-            revealDim.raycastTarget = false;
+            revealDim.raycastTarget = true;
+            var revealButton = revealDimGo.AddComponent<MenuButton>();
+            revealButton.screen = MenuScreen.Reveal;
 
             var cardGo = new GameObject("RevealCard");
             cardGo.transform.SetParent(revealGo.transform, false);
@@ -355,11 +362,192 @@ namespace GuitarPlatformer.EditorTools
                 TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 46f), new Vector2(900f, 30f),
                 dim, a.Font, FontStyle.Bold);
 
+            MenuView menu = BuildMenu(canvasGo.transform, a);
+
             hud.Configure(note, detail, count, controls, view, chord, boostLabel, mute, recent, fade,
                 noteGroup);
             hud.ConfigureCampaign(levelGroup, levelHeader, levelStep, levelTarget, levelChord, levelMode,
-                errorImage, revealGroup, revealTitle, revealArtist, revealPrompt);
+                levelStatus, errorImage, revealGroup, revealTitle, revealArtist, revealPrompt);
             return hud;
+        }
+
+        private static MenuView BuildMenu(Transform canvas, BuilderAssets a)
+        {
+            Color cyan = new Color(0.3f, 0.95f, 1f);
+            Color dim = new Color(0.63f, 0.72f, 0.9f, 0.82f);
+            Font font = a.Font;
+
+            var menu = canvas.gameObject.AddComponent<MenuView>();
+
+            CanvasGroup mainGroup = CreateMenuScreen(canvas, "MainMenu", new Color(0.005f, 0.004f, 0.015f, 0.86f),
+                out Transform mainRoot);
+            CanvasGroup challengeGroup = CreateMenuScreen(canvas, "ChallengeMenu",
+                new Color(0.005f, 0.004f, 0.015f, 0.9f), out Transform challengeRoot);
+            CanvasGroup pauseGroup = CreateMenuScreen(canvas, "PauseMenu",
+                new Color(0.005f, 0.004f, 0.015f, 0.78f), out Transform pauseRoot);
+            CanvasGroup outGroup = CreateMenuScreen(canvas, "OutOfLives",
+                new Color(0.005f, 0.004f, 0.015f, 0.9f), out Transform outRoot);
+
+            // Main menu.
+            Transform mainCard = CreateMenuCard(mainRoot, new Vector2(860f, 560f),
+                new Color(0.018f, 0.012f, 0.05f, 0.96f));
+            BuilderUtil.CreateText(mainCard, "MenuTitle", "FRET HOPPER", 74, TextAnchor.UpperCenter,
+                new Vector2(0.5f, 1f), new Vector2(0f, -52f), new Vector2(800f, 90f), cyan, font, FontStyle.Bold);
+            BuilderUtil.CreateText(mainCard, "MenuSubtitle", "RIFF CHALLENGES", 25, TextAnchor.UpperCenter,
+                new Vector2(0.5f, 1f), new Vector2(0f, -148f), new Vector2(800f, 34f), dim, font,
+                FontStyle.Bold);
+            MenuView.MenuRow[] mainRows =
+            {
+                CreateMenuRow(mainCard, "MainRow_0", "FREE PLAY", new Vector2(0f, 34f),
+                    new Vector2(520f, 78f), MenuScreen.Main, 0, font),
+                CreateMenuRow(mainCard, "MainRow_1", "CHALLENGES", new Vector2(0f, -58f),
+                    new Vector2(520f, 78f), MenuScreen.Main, 1, font)
+            };
+            BuilderUtil.CreateText(mainCard, "MenuHint",
+                "W / S  ·  LEFT STICK  ·  ENTER / A  ·  MOUSE", 18, TextAnchor.LowerCenter,
+                new Vector2(0.5f, 0f), new Vector2(0f, 54f), new Vector2(800f, 26f), dim, font);
+
+            // Challenge select.
+            Transform challengeCard = CreateMenuCard(challengeRoot, new Vector2(1080f, 880f),
+                new Color(0.018f, 0.012f, 0.05f, 0.97f));
+            BuilderUtil.CreateText(challengeCard, "ChallengeTitle", "CHALLENGES", 58, TextAnchor.UpperCenter,
+                new Vector2(0.5f, 1f), new Vector2(0f, -38f), new Vector2(980f, 70f), cyan, font,
+                FontStyle.Bold);
+
+            MenuView.MenuRow[] challengeRows =
+            {
+                CreateMenuRow(challengeCard, "ChallengeRow_0", "CHALLENGE 01  ·  ???", new Vector2(0f, 190f),
+                    new Vector2(760f, 72f), MenuScreen.Challenge, 0, font, 25),
+                CreateMenuRow(challengeCard, "ChallengeRow_1", "CHALLENGE 02  ·  LOCKED", new Vector2(0f, 100f),
+                    new Vector2(760f, 72f), MenuScreen.Challenge, 1, font, 25),
+                CreateMenuRow(challengeCard, "ChallengeRow_2", "CHALLENGE 03  ·  LOCKED", new Vector2(0f, 10f),
+                    new Vector2(760f, 72f), MenuScreen.Challenge, 2, font, 25)
+            };
+
+            BuilderUtil.CreateText(challengeCard, "DifficultyTitle", "DIFFICULTY  ·  ← / → OR CLICK", 20,
+                TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, -78f),
+                new Vector2(760f, 28f), dim, font, FontStyle.Bold);
+
+            MenuView.MenuRow[] difficultyRows =
+            {
+                CreateMenuRow(challengeCard, "DifficultyRow_0", "EASY", new Vector2(-260f, -138f),
+                    new Vector2(230f, 56f), MenuScreen.Difficulty, 0, font, 22),
+                CreateMenuRow(challengeCard, "DifficultyRow_1", "MEDIUM", new Vector2(0f, -138f),
+                    new Vector2(230f, 56f), MenuScreen.Difficulty, 1, font, 22),
+                CreateMenuRow(challengeCard, "DifficultyRow_2", "HARD", new Vector2(260f, -138f),
+                    new Vector2(230f, 56f), MenuScreen.Difficulty, 2, font, 22)
+            };
+
+            Text challengeStatus = BuilderUtil.CreateText(challengeCard, "ChallengeStatus", "", 23,
+                TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, -212f),
+                new Vector2(960f, 34f), Color.white, font, FontStyle.Bold);
+            Text difficultyDescription = BuilderUtil.CreateText(challengeCard, "DifficultyDescription", "", 17,
+                TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, -252f),
+                new Vector2(980f, 30f), dim, font, FontStyle.Bold);
+
+            MenuView.MenuRow backRow = CreateMenuRow(challengeCard, "ChallengeBack", "BACK", new Vector2(0f, -330f),
+                new Vector2(300f, 56f), MenuScreen.Challenge, 3, font, 22);
+            BuilderUtil.CreateText(challengeCard, "ChallengeHint",
+                "W / S  ·  LEFT STICK  ·  ENTER / A  ·  ESC / B  ·  MOUSE", 17, TextAnchor.LowerCenter,
+                new Vector2(0.5f, 0f), new Vector2(0f, 38f), new Vector2(980f, 26f), dim, font);
+
+            // Pause.
+            Transform pauseCard = CreateMenuCard(pauseRoot, new Vector2(660f, 500f),
+                new Color(0.018f, 0.012f, 0.05f, 0.97f));
+            BuilderUtil.CreateText(pauseCard, "PauseTitle", "PAUSED", 56, TextAnchor.UpperCenter,
+                new Vector2(0.5f, 1f), new Vector2(0f, -46f), new Vector2(600f, 70f), cyan, font,
+                FontStyle.Bold);
+            MenuView.MenuRow[] pauseRows =
+            {
+                CreateMenuRow(pauseCard, "PauseRow_0", "RESUME", new Vector2(0f, 62f),
+                    new Vector2(420f, 64f), MenuScreen.Pause, 0, font, 24),
+                CreateMenuRow(pauseCard, "PauseRow_1", "RESTART CHALLENGE", new Vector2(0f, -22f),
+                    new Vector2(420f, 64f), MenuScreen.Pause, 1, font, 24),
+                CreateMenuRow(pauseCard, "PauseRow_2", "CHALLENGE MENU", new Vector2(0f, -106f),
+                    new Vector2(420f, 64f), MenuScreen.Pause, 2, font, 24)
+            };
+            BuilderUtil.CreateText(pauseCard, "PauseHint", "ESC / START  ·  RESUME", 17,
+                TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 42f), new Vector2(600f, 24f),
+                dim, font);
+
+            // Out of lives.
+            Transform outCard = CreateMenuCard(outRoot, new Vector2(780f, 360f),
+                new Color(0.05f, 0.008f, 0.025f, 0.98f));
+            BuilderUtil.CreateText(outCard, "OutTitle", "OUT OF LIVES", 66, TextAnchor.UpperCenter,
+                new Vector2(0.5f, 1f), new Vector2(0f, -58f), new Vector2(720f, 80f),
+                new Color(1f, 0.32f, 0.45f, 1f), font, FontStyle.Bold);
+            BuilderUtil.CreateText(outCard, "OutSubtitle", "RESTARTING CHALLENGE FROM STEP 1", 23,
+                TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, -8f), new Vector2(720f, 34f),
+                Color.white, font, FontStyle.Bold);
+            BuilderUtil.CreateText(outCard, "OutHint", "3 LIVES RESTORED", 18, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 0.5f), new Vector2(0f, -52f), new Vector2(720f, 28f), dim, font);
+
+            menu.Configure(mainGroup, challengeGroup, pauseGroup, outGroup, mainRows, challengeRows,
+                backRow, difficultyRows, pauseRows, challengeStatus, difficultyDescription);
+            return menu;
+        }
+
+        private static CanvasGroup CreateMenuScreen(Transform canvas, string name, Color dimColor,
+            out Transform root)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(canvas, false);
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            var group = go.AddComponent<CanvasGroup>();
+            var dim = go.AddComponent<Image>();
+            dim.color = dimColor;
+            dim.raycastTarget = false;
+            root = go.transform;
+            return group;
+        }
+
+        private static Transform CreateMenuCard(Transform parent, Vector2 size, Color color)
+        {
+            var go = new GameObject("Card");
+            go.transform.SetParent(parent, false);
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = size;
+
+            var image = go.AddComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+            return go.transform;
+        }
+
+        private static MenuView.MenuRow CreateMenuRow(Transform parent, string name, string label,
+            Vector2 position, Vector2 size, MenuScreen screen, int index, Font font, int fontSize = 28)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+
+            var image = go.AddComponent<Image>();
+            image.color = new Color(0.02f, 0.015f, 0.05f, 0.9f);
+            image.raycastTarget = true;
+
+            var button = go.AddComponent<MenuButton>();
+            button.screen = screen;
+            button.index = index;
+
+            Text text = BuilderUtil.CreateText(go.transform, "Label", label, fontSize, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 0.5f), Vector2.zero, size,
+                new Color(0.78f, 0.84f, 1f, 0.92f), font, FontStyle.Bold);
+
+            return new MenuView.MenuRow { background = image, label = text };
         }
 
         private static void BuildGame(BuilderAssets a, Transform root)
@@ -385,6 +573,14 @@ namespace GuitarPlatformer.EditorTools
             volume.isGlobal = true;
             volume.priority = 0f;
             volume.sharedProfile = a.Profile;
+        }
+
+        private static void BuildEventSystem(Transform root)
+        {
+            var go = new GameObject("EventSystem");
+            go.transform.SetParent(root, false);
+            go.AddComponent<EventSystem>();
+            go.AddComponent<InputSystemUIInputModule>();
         }
 
         private static TargetBeacon BuildTargetBeacon(BuilderAssets a, Transform root)

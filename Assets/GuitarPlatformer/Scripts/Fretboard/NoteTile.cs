@@ -67,6 +67,10 @@ namespace GuitarPlatformer
         /// <summary>Single path for landing and walk-on triggers: audio, FX, HUD, ghosts and flash.</summary>
         public void Play(float impact01)
         {
+            // Easy challenges disable wrong pads entirely. Medium and Hard still let
+            // them sound so the mistake can cost a life.
+            if (LevelManager.Instance != null && !LevelManager.Instance.CanTriggerNote(this)) return;
+
             PlayInternal(impact01);
             if (LevelManager.Instance != null)
                 LevelManager.Instance.OnNotePlayed(this);

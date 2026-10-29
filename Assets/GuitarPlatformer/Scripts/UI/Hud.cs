@@ -28,6 +28,7 @@ namespace GuitarPlatformer
         [SerializeField] private Text targetText;
         [SerializeField] private Text chordRequirementText;
         [SerializeField] private Text noteModeText;
+        [SerializeField] private Text runStatusText;
         [SerializeField] private Image errorImage;
         [SerializeField] private CanvasGroup revealGroup;
         [SerializeField] private Text revealTitle;
@@ -74,7 +75,7 @@ namespace GuitarPlatformer
         }
 
         public void ConfigureCampaign(CanvasGroup levelCanvasGroup, Text level, Text step, Text target,
-            Text chordRequirement, Text noteMode, Image errorFlash, CanvasGroup revealCanvasGroup,
+            Text chordRequirement, Text noteMode, Text runStatus, Image errorFlash, CanvasGroup revealCanvasGroup,
             Text songTitle, Text songArtist, Text prompt)
         {
             levelGroup = levelCanvasGroup;
@@ -83,6 +84,7 @@ namespace GuitarPlatformer
             targetText = target;
             chordRequirementText = chordRequirement;
             noteModeText = noteMode;
+            runStatusText = runStatus;
             errorImage = errorFlash;
             revealGroup = revealCanvasGroup;
             revealTitle = songTitle;
@@ -95,7 +97,12 @@ namespace GuitarPlatformer
                 c.a = 0f;
                 errorImage.color = c;
             }
-            if (revealGroup != null) revealGroup.alpha = 0f;
+            if (revealGroup != null)
+            {
+                revealGroup.alpha = 0f;
+                revealGroup.blocksRaycasts = false;
+                revealGroup.interactable = false;
+            }
         }
 
         private void Start()
@@ -184,23 +191,35 @@ namespace GuitarPlatformer
                 : new Color(0.63f, 0.72f, 0.9f, 0.82f);
         }
 
-        public void ShowReveal(string title, string artist, bool finalLevel)
+        public void SetRunStatus(string text, Color color)
         {
-            if (revealGroup != null) revealGroup.alpha = 1f;
+            if (runStatusText == null) return;
+            runStatusText.text = text ?? "";
+            runStatusText.color = color;
+        }
+
+        public void ShowReveal(string title, string artist, string prompt)
+        {
+            if (revealGroup != null)
+            {
+                revealGroup.alpha = 1f;
+                revealGroup.blocksRaycasts = true;
+                revealGroup.interactable = true;
+            }
             if (revealTitle != null) revealTitle.text = title;
             if (revealArtist != null) revealArtist.text = artist;
-            if (revealPrompt != null)
-            {
-                revealPrompt.text = finalLevel
-                    ? "SPACE  ·  RETURN TO FREE PLAY"
-                    : "SPACE  ·  NEXT RIFF";
-            }
+            if (revealPrompt != null) revealPrompt.text = prompt ?? "";
             if (levelGroup != null) levelGroup.alpha = 0f;
         }
 
         public void HideReveal()
         {
-            if (revealGroup != null) revealGroup.alpha = 0f;
+            if (revealGroup != null)
+            {
+                revealGroup.alpha = 0f;
+                revealGroup.blocksRaycasts = false;
+                revealGroup.interactable = false;
+            }
         }
 
         public void FlashError()

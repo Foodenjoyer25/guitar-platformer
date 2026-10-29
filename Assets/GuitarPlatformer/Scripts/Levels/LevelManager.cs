@@ -7,46 +7,65 @@ namespace GuitarPlatformer
 {
     public enum LevelState
     {
+        MainMenu,
+        ChallengeSelect,
         FreePlay,
         Playing,
         Replay,
-        Reveal
+        Reveal,
+        Paused,
+        OutOfLives
     }
 
     /// <summary>
-    /// Runs the three-riff campaign: ordered target pads, manual chord validation,
-    /// mistake teleport back to the last correct pad, a tempo-correct replay and the
-    /// song reveal card.
+    /// Runs the main menu, challenge select and the three-riff campaign: ordered target
+    /// pads, manual chord validation, mistake teleport back to the last correct pad, a
+    /// tempo-correct replay and the song reveal card.
     /// </summary>
     public class LevelManager : MonoBehaviour
     {
+        public const int StartingLives = 3;
+
         public static LevelManager Instance { get; private set; }
 
         private RiffLevel[] levels;
+        private bool[] completed;
         private PlayerController player;
         private Hud hud;
+        private MenuView menu;
         private TargetBeacon beacon;
         private ChordManager chords;
         private NoteTile[] tiles;
 
-        private LevelState state = LevelState.FreePlay;
+        private LevelState state = LevelState.MainMenu;
+        private Difficulty difficulty = Difficulty.Medium;
         private int levelIndex;
         private int stepIndex;
         private int mistakes;
+        private int lives = StartingLives;
+        private int mainSelection;
+        private int challengeSelection;
+        private int pauseSelection;
         private bool campaignActive;
         private bool savedLandingOnly;
         private NoteTile targetTile;
         private NoteTile lastCorrectTile;
         private Coroutine replayRoutine;
+        private Coroutine outOfLivesRoutine;
         private bool replayUsesDsp;
         private double replayStart;
 
         public LevelState State => state;
+        public Difficulty CurrentDifficulty => difficulty;
         public int CurrentLevelIndex => levelIndex;
         public int CurrentStepIndex => stepIndex;
         public int StepCount => CurrentLevel != null ? CurrentLevel.Steps.Length : 0;
         public int ReplayEventCount => CurrentLevel != null ? RiffPerformance.EventCount(CurrentLevel) : 0;
         public int MistakeCount => mistakes;
+        public int Lives => lives;
+        public int MainMenuSelection => mainSelection;
+        public int ChallengeMenuSelection => challengeSelection;
+        public int PauseMenuSelection => pauseSelection;
         public bool CampaignActive => campaignActive;
         public NoteTile TargetTile => targetTile;
         public bool AllowChordInput => state == LevelState.FreePlay || state == LevelState.Playing;
@@ -74,10 +93,29 @@ namespace GuitarPlatformer
             }
         }
 
+        public bool IsChallengeCompleted(int index)
+        {
+            return completed != null && index >= 0 && index < completed.Length && completed[index];
+        }
+
+        public bool IsChallengeUnlocked(int index)
+        {
+            if (levels == null || index < 0 || index >= levels.Length) return false;
+            return index == 0 || IsChallengeCompleted(index - 1);
+        }
+
+        /// <summary>The name shown in menus. Locked and unfinished challenges stay hidden.</summary>
+        public string ChallengeDisplayName(int index)
+        {
+            if (levels == null || index < 0 || index >= levels.Length) return "???";
+            return IsChallengeCompleted(index) ? levels[index].Title : "???";
+        }
+
         private void Awake()
         {
             Instance = this;
             levels = RiffLibrary.CreateLevels();
+            completed = new bool[levels.Length];
         }
 
         private void OnDestroy()
@@ -92,6 +130,8 @@ namespace GuitarPlatformer
             if (player == null) player = Object.FindAnyObjectByType<PlayerController>();
             hud = Hud.Instance;
             if (hud == null) hud = Object.FindAnyObjectByType<Hud>();
+            menu = MenuView.Instance;
+            if (menu == null) menu = Object.FindAnyObjectByType<MenuView>();
             chords = ChordManager.Instance;
             if (chords == null) chords = Object.FindAnyObjectByType<ChordManager>();
             beacon = TargetBeacon.Instance;
@@ -99,59 +139,229 @@ namespace GuitarPlatformer
             tiles = Object.FindObjectsByType<NoteTile>();
 
             if (chords != null) chords.ActiveChanged += OnActiveChanged;
-            ShowFreePlay();
+            ShowMainMenu();
         }
 
         private void Update()
         {
-            // Campaign levels use walk-on note triggers. Free play keeps the player's
-            // L choice, so re-assert walk-on in case a stale scene value or an external
-            // toggle tries to switch a live level to landing-only.
-            if (state == LevelState.Playing && player != null && player.LandingOnlyNotes)
-                player.SetLandingOnly(false);
-
             Keyboard keyboard = Keyboard.current;
-            if (keyboard == null) return;
+            Gamepad gamepad = Gamepad.current;
 
-            if (state == LevelState.FreePlay)
+            if (state == LevelState.Playing)
             {
-                if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)
-                {
-                    StartCampaign();
-                    return;
-                }
+                // Campaign levels use walk-on note triggers. Free play keeps the player's
+                // L choice, so re-assert walk-on in case a stale scene value or an external
+                // toggle tries to switch a live level to landing-only.
+                if (player != null && player.LandingOnlyNotes)
+                    player.SetLandingOnly(false);
 
-                if (keyboard.lKey.wasPressedThisFrame && player != null)
-                {
-                    player.ToggleNoteMode();
-                    UpdateNoteModeHud();
-                }
+                if (PausePressed(keyboard, gamepad))
+                    TogglePause();
                 return;
             }
 
-            if (state == LevelState.Reveal && keyboard.spaceKey.wasPressedThisFrame)
-                AdvanceFromReveal();
+            switch (state)
+            {
+                case LevelState.FreePlay:
+                    if (MenuPressed(keyboard, gamepad))
+                    {
+                        if (player != null) savedLandingOnly = player.LandingOnlyNotes;
+                        ShowMainMenu();
+                        return;
+                    }
+
+                    if (keyboard != null && keyboard.lKey.wasPressedThisFrame && player != null)
+                    {
+                        player.ToggleNoteMode();
+                        UpdateNoteModeHud();
+                    }
+                    break;
+
+                case LevelState.MainMenu:
+                    HandleMainMenu(keyboard, gamepad);
+                    break;
+
+                case LevelState.ChallengeSelect:
+                    HandleChallengeSelect(keyboard, gamepad);
+                    break;
+
+                case LevelState.Paused:
+                    HandlePause(keyboard, gamepad);
+                    break;
+
+                case LevelState.Reveal:
+                    if (ConfirmPressed(keyboard, gamepad))
+                        AdvanceFromReveal();
+                    break;
+            }
         }
 
-        /// <summary>Starts the campaign from free play. Enter calls this.</summary>
+        private void HandleMainMenu(Keyboard keyboard, Gamepad gamepad)
+        {
+            int direction = NavigationDirection(keyboard, gamepad);
+            if (direction != 0)
+            {
+                mainSelection = Wrap(mainSelection + direction, 2);
+                if (menu != null) menu.ShowMainMenu(mainSelection);
+            }
+
+            if (ConfirmPressed(keyboard, gamepad))
+                ActivateMenu(MenuScreen.Main, mainSelection);
+        }
+
+        private void HandleChallengeSelect(Keyboard keyboard, Gamepad gamepad)
+        {
+            int direction = NavigationDirection(keyboard, gamepad);
+            if (direction != 0)
+            {
+                challengeSelection = Wrap(challengeSelection + direction, 4);
+                RefreshChallengeMenu();
+            }
+
+            int difficultyDirection = HorizontalDirection(keyboard, gamepad);
+            if (difficultyDirection != 0)
+                CycleDifficulty(difficultyDirection);
+
+            if (ConfirmPressed(keyboard, gamepad))
+            {
+                if (challengeSelection >= 3) ShowMainMenu();
+                else StartChallenge(challengeSelection);
+            }
+            else if (BackPressed(keyboard, gamepad))
+            {
+                ShowMainMenu();
+            }
+        }
+
+        private void HandlePause(Keyboard keyboard, Gamepad gamepad)
+        {
+            if (PausePressed(keyboard, gamepad))
+            {
+                ClosePause();
+                return;
+            }
+
+            int direction = NavigationDirection(keyboard, gamepad);
+            if (direction != 0)
+            {
+                pauseSelection = Wrap(pauseSelection + direction, 3);
+                if (menu != null) menu.ShowPause(pauseSelection);
+            }
+
+            if (ConfirmPressed(keyboard, gamepad))
+            {
+                ActivateMenu(MenuScreen.Pause, pauseSelection);
+            }
+            else if (BackPressed(keyboard, gamepad))
+            {
+                ClosePause();
+            }
+        }
+
+        /// <summary>Mouse bridge: hovering a row moves the keyboard/gamepad selection.</summary>
+        public void HoverMenu(MenuScreen screen, int index)
+        {
+            switch (screen)
+            {
+                case MenuScreen.Main:
+                    if (state != LevelState.MainMenu) return;
+                    mainSelection = Mathf.Clamp(index, 0, 1);
+                    if (menu != null) menu.ShowMainMenu(mainSelection);
+                    break;
+
+                case MenuScreen.Challenge:
+                    if (state != LevelState.ChallengeSelect) return;
+                    challengeSelection = Mathf.Clamp(index, 0, 3);
+                    RefreshChallengeMenu();
+                    break;
+
+                case MenuScreen.Pause:
+                    if (state != LevelState.Paused) return;
+                    pauseSelection = Mathf.Clamp(index, 0, 2);
+                    if (menu != null) menu.ShowPause(pauseSelection);
+                    break;
+            }
+        }
+
+        /// <summary>Mouse bridge: activates the clicked row.</summary>
+        public void ActivateMenu(MenuScreen screen, int index)
+        {
+            switch (screen)
+            {
+                case MenuScreen.Main:
+                    if (state != LevelState.MainMenu) return;
+                    if (index == 0) EnterFreePlay();
+                    else if (index == 1) EnterChallengeSelect();
+                    break;
+
+                case MenuScreen.Challenge:
+                    if (state != LevelState.ChallengeSelect) return;
+                    if (index >= 3) ShowMainMenu();
+                    else StartChallenge(index);
+                    break;
+
+                case MenuScreen.Difficulty:
+                    if (state != LevelState.ChallengeSelect) return;
+                    SetDifficulty((Difficulty)Mathf.Clamp(index, 0, 2));
+                    break;
+
+                case MenuScreen.Pause:
+                    if (state != LevelState.Paused) return;
+                    if (index == 0) ClosePause();
+                    else if (index == 1) RestartChallenge();
+                    else if (index == 2) EnterChallengeSelect();
+                    break;
+
+                case MenuScreen.Reveal:
+                    if (state == LevelState.Reveal) AdvanceFromReveal();
+                    break;
+            }
+        }
+
+        public void SetDifficulty(Difficulty value)
+        {
+            difficulty = value;
+            if (state == LevelState.ChallengeSelect) RefreshChallengeMenu();
+        }
+
+        public void CycleDifficulty(int direction)
+        {
+            int next = ((int)difficulty + direction) % 3;
+            if (next < 0) next += 3;
+            SetDifficulty((Difficulty)next);
+        }
+
+        /// <summary>Starts challenge 01. Kept as a test/debug hook.</summary>
         public void StartCampaign()
         {
-            if (state != LevelState.FreePlay || player == null) return;
-            savedLandingOnly = player.LandingOnlyNotes;
-            campaignActive = true;
-            levelIndex = 0;
-            LoadLevel();
+            StartChallenge(0);
         }
 
-        /// <summary>Test and debug hook: jump straight to a level.</summary>
+        /// <summary>Test and debug hook: jump straight to a level, ignoring unlock state.</summary>
         public void StartLevel(int index)
         {
             if (levels == null || index < 0 || index >= levels.Length || player == null) return;
             StopReplay();
+            if (menu != null) menu.HideAll();
             if (hud != null) hud.HideReveal();
             if (!campaignActive) savedLandingOnly = player.LandingOnlyNotes;
             campaignActive = true;
             levelIndex = index;
+            challengeSelection = Mathf.Clamp(index, 0, 3);
+            LoadLevel();
+        }
+
+        /// <summary>Starts an unlocked challenge from the challenge select screen.</summary>
+        public void StartChallenge(int index)
+        {
+            if (!IsChallengeUnlocked(index) || player == null) return;
+            StopReplay();
+            if (menu != null) menu.HideAll();
+            if (hud != null) hud.HideReveal();
+            if (!campaignActive) savedLandingOnly = player.LandingOnlyNotes;
+            campaignActive = true;
+            levelIndex = index;
+            challengeSelection = Mathf.Clamp(index, 0, 3);
             LoadLevel();
         }
 
@@ -164,17 +374,73 @@ namespace GuitarPlatformer
             return true;
         }
 
-        /// <summary>Advances the reveal card. Space calls this; tests may too.</summary>
+        /// <summary>Advances the current screen. Space calls this on the reveal card; tests may too.</summary>
         public void Advance()
         {
-            if (state == LevelState.Reveal) AdvanceFromReveal();
-            else if (state == LevelState.FreePlay) StartCampaign();
+            switch (state)
+            {
+                case LevelState.Reveal:
+                    AdvanceFromReveal();
+                    break;
+                case LevelState.MainMenu:
+                    ActivateMenu(MenuScreen.Main, mainSelection);
+                    break;
+                case LevelState.ChallengeSelect:
+                    ActivateMenu(MenuScreen.Challenge, challengeSelection);
+                    break;
+                case LevelState.FreePlay:
+                    ShowMainMenu();
+                    break;
+            }
+        }
+
+        public void TogglePause()
+        {
+            if (state == LevelState.Playing) OpenPause();
+            else if (state == LevelState.Paused) ClosePause();
+        }
+
+        private void OpenPause()
+        {
+            if (state != LevelState.Playing) return;
+            state = LevelState.Paused;
+            pauseSelection = 0;
+            if (player != null) player.SetInputLocked(true);
+            if (menu != null) menu.ShowPause(pauseSelection);
+        }
+
+        private void ClosePause()
+        {
+            if (state != LevelState.Paused) return;
+            state = LevelState.Playing;
+            if (menu != null) menu.HideAll();
+            if (player != null) player.SetInputLocked(false);
+            UpdateHud();
+        }
+
+        private void RestartChallenge()
+        {
+            if (menu != null) menu.HideAll();
+            LoadLevel();
+        }
+
+        /// <summary>
+        /// Easy disables wrong pads: only the authored target pitch or a safe pad may
+        /// trigger a note. Medium and Hard keep the original free pad triggering so a
+        /// wrong note can cost a life.
+        /// </summary>
+        public bool CanTriggerNote(NoteTile tile)
+        {
+            if (state != LevelState.Playing || difficulty != Difficulty.Easy || tile == null) return true;
+            if (targetTile != null && tile.midi == targetTile.midi) return true;
+            return IsSafePad(tile);
         }
 
         /// <summary>Called by NoteTile.Play after the note and manual chord have sounded.</summary>
         public void OnNotePlayed(NoteTile tile)
         {
             if (state != LevelState.Playing || tile == null) return;
+            if (difficulty == Difficulty.Easy && !CanTriggerNote(tile)) return;
 
             // Any pad holding the target pitch counts, even on another string. The
             // authored pad still drives the beacon and HUD, so the equivalence is not
@@ -246,7 +512,7 @@ namespace GuitarPlatformer
 
             RiffStep step = level.Steps[stepIndex];
             targetTile = FindTile(step.StringIndex, step.Fret);
-            if (beacon != null) beacon.SetTarget(targetTile);
+            ShowBeaconTarget();
             UpdateHud();
         }
 
@@ -259,9 +525,49 @@ namespace GuitarPlatformer
             if (OrbitFollowCamera.Instance != null)
                 OrbitFollowCamera.Instance.Shake(0.18f, 0.075f, 0.9f);
 
+            if (campaignActive && difficulty != Difficulty.Easy)
+            {
+                lives = Mathf.Max(0, lives - 1);
+                UpdateRunStatus();
+                if (lives <= 0)
+                {
+                    BeginOutOfLives();
+                    return;
+                }
+            }
+
             NoteTile safe = PreviousCorrectTile();
             if (safe != null && player != null)
                 player.TeleportTo(PadTop(safe));
+        }
+
+        private void BeginOutOfLives()
+        {
+            state = LevelState.OutOfLives;
+            if (player != null) player.SetInputLocked(true);
+            if (beacon != null) beacon.Clear();
+            if (hud != null)
+            {
+                hud.SetStep("OUT OF LIVES");
+                hud.SetTarget("RESTARTING CHALLENGE");
+                hud.SetRunStatus("LIVES 0 / " + StartingLives, new Color(1f, 0.35f, 0.45f, 1f));
+                hud.SetLevelVisible(false);
+            }
+            if (menu != null) menu.ShowOutOfLives();
+
+            if (outOfLivesRoutine != null) StopCoroutine(outOfLivesRoutine);
+            outOfLivesRoutine = StartCoroutine(OutOfLivesRoutine());
+        }
+
+        private IEnumerator OutOfLivesRoutine()
+        {
+            yield return new WaitForSeconds(1.5f);
+            outOfLivesRoutine = null;
+            if (state != LevelState.OutOfLives) yield break;
+
+            if (menu != null) menu.HideAll();
+            if (hud != null) hud.SetLevelVisible(true);
+            LoadLevel();
         }
 
         private NoteTile PreviousCorrectTile()
@@ -282,7 +588,7 @@ namespace GuitarPlatformer
             if (beacon != null) beacon.Clear();
             if (hud != null)
             {
-                hud.SetStep("REPLAY  ·  " + level.Title.ToUpperInvariant());
+                hud.SetStep("REPLAY  ·  CHALLENGE " + (levelIndex + 1).ToString("00"));
                 hud.SetTarget("RIFF COMPLETE  ·  " + level.Bpm + " BPM");
             }
 
@@ -344,12 +650,14 @@ namespace GuitarPlatformer
             if (level == null) return;
 
             state = LevelState.Reveal;
+            completed[levelIndex] = true;
             if (beacon != null) beacon.Clear();
             if (hud != null)
             {
                 hud.SetStep("RIFF COMPLETE");
                 hud.SetTarget(level.Title.ToUpperInvariant() + "  ·  " + level.Artist);
-                hud.ShowReveal(level.Title, level.Artist, levelIndex == levels.Length - 1);
+                hud.ShowReveal(level.Title, level.Artist,
+                    "SPACE / ENTER / A  ·  CHALLENGE MENU");
             }
         }
 
@@ -357,16 +665,8 @@ namespace GuitarPlatformer
         {
             if (state != LevelState.Reveal) return;
             if (hud != null) hud.HideReveal();
-
-            if (levelIndex + 1 < levels.Length)
-            {
-                levelIndex++;
-                LoadLevel();
-            }
-            else
-            {
-                ReturnToFreePlay();
-            }
+            challengeSelection = Mathf.Clamp(levelIndex + 1, 0, levels.Length - 1);
+            EnterChallengeSelect();
         }
 
         private void LoadLevel()
@@ -375,9 +675,16 @@ namespace GuitarPlatformer
             if (level == null) return;
 
             StopReplay();
+            if (outOfLivesRoutine != null)
+            {
+                StopCoroutine(outOfLivesRoutine);
+                outOfLivesRoutine = null;
+            }
+
             state = LevelState.Playing;
             stepIndex = 0;
             mistakes = 0;
+            lives = StartingLives;
 
             NoteTile start = FindTile(level.StartString, level.StartFret);
             lastCorrectTile = start;
@@ -390,11 +697,12 @@ namespace GuitarPlatformer
                 player.SetLandingOnly(false);
             }
             if (chords != null) chords.Clear();
+            if (menu != null) menu.HideAll();
 
             if (start != null && player != null)
                 player.TeleportTo(PadTop(start));
 
-            if (beacon != null) beacon.SetTarget(targetTile);
+            ShowBeaconTarget();
             if (hud != null)
             {
                 hud.HideReveal();
@@ -403,16 +711,25 @@ namespace GuitarPlatformer
             UpdateHud();
         }
 
-        private void ReturnToFreePlay()
+        private void EnterFreePlay()
         {
             StopReplay();
+            if (outOfLivesRoutine != null)
+            {
+                StopCoroutine(outOfLivesRoutine);
+                outOfLivesRoutine = null;
+            }
+
             state = LevelState.FreePlay;
             campaignActive = false;
             levelIndex = 0;
             stepIndex = 0;
+            mistakes = 0;
+            lives = StartingLives;
             targetTile = null;
             lastCorrectTile = null;
 
+            if (menu != null) menu.HideAll();
             if (hud != null) hud.HideReveal();
             if (chords != null) chords.Clear();
             if (beacon != null) beacon.Clear();
@@ -427,15 +744,122 @@ namespace GuitarPlatformer
             ShowFreePlay();
         }
 
+        private void ShowMainMenu()
+        {
+            StopReplay();
+            if (outOfLivesRoutine != null)
+            {
+                StopCoroutine(outOfLivesRoutine);
+                outOfLivesRoutine = null;
+            }
+
+            if (state == LevelState.FreePlay && player != null)
+                savedLandingOnly = player.LandingOnlyNotes;
+
+            state = LevelState.MainMenu;
+            campaignActive = false;
+            levelIndex = 0;
+            stepIndex = 0;
+            targetTile = null;
+            lastCorrectTile = null;
+            mainSelection = 0;
+
+            if (player != null) player.SetInputLocked(true);
+            if (chords != null) chords.Clear();
+            if (beacon != null) beacon.Clear();
+            if (hud != null)
+            {
+                hud.HideReveal();
+                hud.SetLevelVisible(false);
+                hud.SetRunStatus("", Color.white);
+            }
+            if (menu != null)
+            {
+                menu.HideAll();
+                menu.ShowMainMenu(mainSelection);
+            }
+        }
+
+        private void EnterChallengeSelect()
+        {
+            StopReplay();
+            if (outOfLivesRoutine != null)
+            {
+                StopCoroutine(outOfLivesRoutine);
+                outOfLivesRoutine = null;
+            }
+
+            state = LevelState.ChallengeSelect;
+            campaignActive = false;
+            stepIndex = 0;
+            targetTile = null;
+            lastCorrectTile = null;
+            challengeSelection = Mathf.Clamp(challengeSelection, 0, 3);
+
+            if (player != null) player.SetInputLocked(true);
+            if (chords != null) chords.Clear();
+            if (beacon != null) beacon.Clear();
+            if (hud != null)
+            {
+                hud.HideReveal();
+                hud.SetLevelVisible(false);
+                hud.SetRunStatus("", Color.white);
+            }
+            RefreshChallengeMenu();
+        }
+
+        private void RefreshChallengeMenu()
+        {
+            if (menu == null || levels == null) return;
+
+            int count = levels.Length;
+            var labels = new string[count];
+            var locked = new bool[count];
+            var cleared = new bool[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                bool unlocked = IsChallengeUnlocked(i);
+                bool done = IsChallengeCompleted(i);
+                locked[i] = !unlocked;
+                cleared[i] = done;
+
+                string prefix = "CHALLENGE " + (i + 1).ToString("00");
+                if (!unlocked) labels[i] = prefix + "  ·  LOCKED";
+                else if (!done) labels[i] = prefix + "  ·  ???";
+                else labels[i] = prefix + "  ·  " + levels[i].Title.ToUpperInvariant();
+            }
+
+            menu.ShowChallengeSelect(labels, locked, cleared, challengeSelection, difficulty,
+                ChallengeStatus(challengeSelection));
+        }
+
+        private string ChallengeStatus(int index)
+        {
+            if (levels == null || index < 0 || index >= levels.Length)
+                return "DIFFICULTY APPLIES TO CHALLENGES ONLY";
+
+            if (!IsChallengeUnlocked(index))
+                return "LOCKED  ·  CLEAR CHALLENGE " + index.ToString("00") + " FIRST";
+
+            RiffLevel level = levels[index];
+            if (!IsChallengeCompleted(index))
+                return "UNKNOWN RIFF  ·  " + level.Steps.Length + " NOTES  ·  " + level.Bpm + " BPM";
+
+            return "CLEARED  ·  " + level.Title.ToUpperInvariant() + "  ·  " +
+                   level.Artist.ToUpperInvariant();
+        }
+
         private void ShowFreePlay()
         {
             if (hud != null)
             {
                 hud.SetLevelVisible(true);
-                hud.SetLevelHeader("FREE PLAY  ·  ENTER STARTS THE RIFF CAMPAIGN");
+                hud.SetLevelHeader("FREE PLAY");
                 hud.SetStep("");
-                hud.SetTarget("L TOGGLES WALK-ON / LANDING ONLY  ·  FREE PLAY");
+                hud.SetTarget("ESC / START  ·  MENU  ·  L  ·  WALK-ON / LANDING ONLY");
                 hud.SetChordRequirement("", true);
+                hud.SetRunStatus("", Color.white);
             }
             UpdateNoteModeHud();
         }
@@ -445,9 +869,9 @@ namespace GuitarPlatformer
             RiffLevel level = CurrentLevel;
             if (hud == null || level == null) return;
 
+            string name = IsChallengeCompleted(levelIndex) ? level.Title.ToUpperInvariant() : "???";
             hud.SetLevelVisible(true);
-            hud.SetLevelHeader("LEVEL " + (levelIndex + 1) + " / " + levels.Length +
-                               "  ·  " + level.Title.ToUpperInvariant());
+            hud.SetLevelHeader("CHALLENGE " + (levelIndex + 1).ToString("00") + "  ·  " + name);
             hud.SetStep("STEP " + (stepIndex + 1) + " / " + level.Steps.Length);
 
             if (targetTile != null)
@@ -463,6 +887,31 @@ namespace GuitarPlatformer
 
             UpdateChordRequirement();
             UpdateNoteModeHud();
+            UpdateRunStatus();
+        }
+
+        private void UpdateRunStatus()
+        {
+            if (hud == null) return;
+
+            if (!campaignActive || state == LevelState.FreePlay || state == LevelState.MainMenu ||
+                state == LevelState.ChallengeSelect)
+            {
+                hud.SetRunStatus("", Color.white);
+                return;
+            }
+
+            if (difficulty == Difficulty.Easy)
+            {
+                hud.SetRunStatus("EASY  ·  WRONG NOTES DISABLED", new Color(0.3f, 0.95f, 1f, 1f));
+                return;
+            }
+
+            Color color = lives <= 1
+                ? new Color(1f, 0.35f, 0.45f, 1f)
+                : new Color(1f, 0.7f, 0.3f, 1f);
+            hud.SetRunStatus(difficulty.ToString().ToUpperInvariant() + "  ·  LIVES " + lives +
+                             " / " + StartingLives, color);
         }
 
         private void UpdateChordRequirement()
@@ -509,6 +958,13 @@ namespace GuitarPlatformer
             if (state == LevelState.Playing) UpdateChordRequirement();
         }
 
+        private void ShowBeaconTarget()
+        {
+            if (beacon == null) return;
+            if (difficulty == Difficulty.Hard) beacon.Clear();
+            else beacon.SetTarget(targetTile);
+        }
+
         private void StopReplay()
         {
             if (ChiptuneAudio.Instance != null) ChiptuneAudio.Instance.StopPerformance();
@@ -538,6 +994,70 @@ namespace GuitarPlatformer
         {
             return new Vector3(FretboardLayout.LaneX(2), FretboardLayout.PadHeight + 0.06f,
                 FretboardLayout.OpenPadCenterZ);
+        }
+
+        private static int Wrap(int value, int count)
+        {
+            if (count <= 0) return 0;
+            value %= count;
+            return value < 0 ? value + count : value;
+        }
+
+        private static bool PausePressed(Keyboard keyboard, Gamepad gamepad)
+        {
+            return (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) ||
+                   (gamepad != null && gamepad.startButton.wasPressedThisFrame);
+        }
+
+        private static bool MenuPressed(Keyboard keyboard, Gamepad gamepad)
+        {
+            return PausePressed(keyboard, gamepad) ||
+                   (keyboard != null && (keyboard.enterKey.wasPressedThisFrame ||
+                                         keyboard.numpadEnterKey.wasPressedThisFrame));
+        }
+
+        private static bool ConfirmPressed(Keyboard keyboard, Gamepad gamepad)
+        {
+            return (keyboard != null && (keyboard.enterKey.wasPressedThisFrame ||
+                                         keyboard.numpadEnterKey.wasPressedThisFrame ||
+                                         keyboard.spaceKey.wasPressedThisFrame)) ||
+                   (gamepad != null && gamepad.buttonSouth.wasPressedThisFrame);
+        }
+
+        private static bool BackPressed(Keyboard keyboard, Gamepad gamepad)
+        {
+            return (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) ||
+                   (gamepad != null && gamepad.buttonEast.wasPressedThisFrame);
+        }
+
+        private static int NavigationDirection(Keyboard keyboard, Gamepad gamepad)
+        {
+            if (keyboard != null)
+            {
+                if (keyboard.upArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame) return -1;
+                if (keyboard.downArrowKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame) return 1;
+            }
+            if (gamepad != null)
+            {
+                if (gamepad.dpad.up.wasPressedThisFrame || gamepad.leftStick.up.wasPressedThisFrame) return -1;
+                if (gamepad.dpad.down.wasPressedThisFrame || gamepad.leftStick.down.wasPressedThisFrame) return 1;
+            }
+            return 0;
+        }
+
+        private static int HorizontalDirection(Keyboard keyboard, Gamepad gamepad)
+        {
+            if (keyboard != null)
+            {
+                if (keyboard.leftArrowKey.wasPressedThisFrame || keyboard.aKey.wasPressedThisFrame) return -1;
+                if (keyboard.rightArrowKey.wasPressedThisFrame || keyboard.dKey.wasPressedThisFrame) return 1;
+            }
+            if (gamepad != null)
+            {
+                if (gamepad.dpad.left.wasPressedThisFrame || gamepad.leftStick.left.wasPressedThisFrame) return -1;
+                if (gamepad.dpad.right.wasPressedThisFrame || gamepad.leftStick.right.wasPressedThisFrame) return 1;
+            }
+            return 0;
         }
     }
 }

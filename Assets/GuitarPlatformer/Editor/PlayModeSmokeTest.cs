@@ -2,6 +2,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -87,6 +88,8 @@ namespace GuitarPlatformer.EditorTools
                     NoteGhosts ghosts = Object.FindAnyObjectByType<NoteGhosts>();
                     ChordManager chords = Object.FindAnyObjectByType<ChordManager>();
                     LevelManager levels = Object.FindAnyObjectByType<LevelManager>();
+                    MenuView menu = Object.FindAnyObjectByType<MenuView>();
+                    EventSystem eventSystem = Object.FindAnyObjectByType<EventSystem>();
                     ChordPreview preview = Object.FindAnyObjectByType<ChordPreview>();
                     StringMuteManager mute = Object.FindAnyObjectByType<StringMuteManager>();
                     TargetBeacon beacon = TargetBeacon.Instance;
@@ -100,18 +103,73 @@ namespace GuitarPlatformer.EditorTools
                     Require(ghosts != null, "ghost system exists");
                     Require(chords != null, "chord manager exists");
                     Require(levels != null, "level manager exists");
+                    Require(menu != null, "menu view exists");
+                    Require(eventSystem != null, "menu event system exists");
                     Require(preview != null, "chord preview exists");
                     Require(mute != null, "string mute manager exists");
                     Require(beacon != null, "target beacon exists");
                     Require(chords.ActiveCount == 0, "chord intervals start off");
                     Require(!mute.PalmMuted && !mute.AllMuted, "strings start unmuted");
                     Require(mute.Label == "OFF", "mute label starts off (" + mute.Label + ")");
-                    Require(levels.State == LevelState.FreePlay, "campaign starts in free play");
-                    Require(levels.TargetTile == null, "no campaign target in free play");
-                    Require(!beacon.HasTarget, "target beacon hidden in free play");
+                    Require(levels.State == LevelState.MainMenu, "game starts on the main menu");
+                    Require(!levels.CampaignActive, "no challenge is active at the main menu");
+                    Require(player.InputLocked, "main menu freezes player input");
+                    Require(levels.TargetTile == null, "no campaign target at the main menu");
+                    Require(!beacon.HasTarget, "target beacon hidden at the main menu");
                     Require(tiles.Length == 150, "150 note pads, found " + tiles.Length);
                     Require(player.IsGrounded, "player grounded at spawn");
                     Require(camera.CurrentView == CameraView.Guitarist, "guitarist view is the default");
+
+                    CanvasGroup mainGroup = GameObject.Find("MainMenu")?.GetComponent<CanvasGroup>();
+                    CanvasGroup challengeGroup = GameObject.Find("ChallengeMenu")?.GetComponent<CanvasGroup>();
+                    CanvasGroup levelGroup = GameObject.Find("LevelPanel")?.GetComponent<CanvasGroup>();
+                    Text mainRow0 = GameObject.Find("MainRow_0")?.GetComponentInChildren<Text>();
+                    Text mainRow1 = GameObject.Find("MainRow_1")?.GetComponentInChildren<Text>();
+                    Require(mainGroup != null && mainGroup.alpha > 0.99f, "main menu is visible");
+                    Require(challengeGroup != null && challengeGroup.alpha < 0.01f,
+                        "challenge menu starts hidden");
+                    Require(levelGroup != null && levelGroup.alpha < 0.01f, "HUD level panel hides in menus");
+                    Require(mainRow0 != null && mainRow0.text == "FREE PLAY", "main menu lists free play");
+                    Require(mainRow1 != null && mainRow1.text == "CHALLENGES", "main menu lists challenges");
+                    Require(GameObject.Find("MainRow_0")?.GetComponent<MenuButton>() != null,
+                        "main menu rows accept mouse input");
+                    Require(GameObject.Find("Reveal")?.transform.Find("Dim")?.GetComponent<MenuButton>() != null,
+                        "reveal card accepts mouse input");
+
+                    // Challenge select starts with only the first challenge unlocked and unnamed.
+                    levels.HoverMenu(MenuScreen.Main, 1);
+                    Require(levels.MainMenuSelection == 1, "mouse hover moves the menu selection");
+                    levels.ActivateMenu(MenuScreen.Main, 1);
+                    Require(levels.State == LevelState.ChallengeSelect, "challenges open from the menu");
+                    Require(levels.IsChallengeUnlocked(0), "challenge 1 is unlocked");
+                    Require(!levels.IsChallengeUnlocked(1), "challenge 2 is locked");
+                    Require(!levels.IsChallengeUnlocked(2), "challenge 3 is locked");
+                    Text challengeRow0 = GameObject.Find("ChallengeRow_0")?.GetComponentInChildren<Text>();
+                    Text challengeRow1 = GameObject.Find("ChallengeRow_1")?.GetComponentInChildren<Text>();
+                    Text challengeRow2 = GameObject.Find("ChallengeRow_2")?.GetComponentInChildren<Text>();
+                    Require(challengeRow0 != null && challengeRow0.text.Contains("???") &&
+                            !challengeRow0.text.Contains("SMOKE ON THE WATER"),
+                        "challenge 1 name stays hidden (" + challengeRow0?.text + ")");
+                    Require(challengeRow1 != null && challengeRow1.text.Contains("LOCKED"),
+                        "challenge 2 shows locked (" + challengeRow1?.text + ")");
+                    Require(challengeRow2 != null && challengeRow2.text.Contains("LOCKED"),
+                        "challenge 3 shows locked (" + challengeRow2?.text + ")");
+                    levels.HoverMenu(MenuScreen.Challenge, 1);
+                    Require(levels.ChallengeMenuSelection == 1,
+                        "mouse hover moves the challenge selection");
+                    levels.ActivateMenu(MenuScreen.Challenge, 2);
+                    Require(levels.State == LevelState.ChallengeSelect,
+                        "a locked challenge cannot start");
+                    levels.ActivateMenu(MenuScreen.Challenge, 3);
+                    Require(levels.State == LevelState.MainMenu, "back returns to the main menu");
+
+                    // Free play keeps the original sandbox and the L note-mode toggle.
+                    levels.ActivateMenu(MenuScreen.Main, 0);
+                    Require(levels.State == LevelState.FreePlay, "free play starts from the menu");
+                    Require(!levels.CampaignActive, "free play is not a challenge");
+                    Require(!player.InputLocked, "free play restores player input");
+                    Require(mainGroup.alpha < 0.01f, "main menu hides for free play");
+                    Require(levelGroup != null && levelGroup.alpha > 0.99f, "HUD returns for free play");
 
                     // The scene is the fretboard alone: no neck, body, headstock or strings.
                     Require(GameObject.Find("Fretboard") != null, "fretboard slab exists");
@@ -733,8 +791,11 @@ namespace GuitarPlatformer.EditorTools
                     TargetBeacon beacon = TargetBeacon.Instance;
                     NoteTile[] tiles = Object.FindObjectsByType<NoteTile>();
 
+                    levels.SetDifficulty(Difficulty.Medium);
                     levels.StartLevel(0);
                     Require(levels.State == LevelState.Playing, "Smoke on the Water starts");
+                    Require(levels.CurrentDifficulty == Difficulty.Medium, "challenge runs on medium");
+                    Require(levels.Lives == LevelManager.StartingLives, "medium starts with three lives");
                     Require(levels.CurrentLevelIndex == 0, "campaign starts at level 1");
                     Require(levels.CurrentLevel.Title == "Smoke on the Water",
                         "level 1 is Smoke on the Water");
@@ -775,8 +836,10 @@ namespace GuitarPlatformer.EditorTools
                     Text target = GameObject.Find("LevelTarget")?.GetComponent<Text>();
                     Text chord = GameObject.Find("LevelChord")?.GetComponent<Text>();
                     Text mode = GameObject.Find("LevelMode")?.GetComponent<Text>();
-                    Require(header != null && header.text.Contains("SMOKE ON THE WATER"),
-                        "HUD names level 1 (" + header?.text + ")");
+                    Text runStatus = GameObject.Find("LevelStatus")?.GetComponent<Text>();
+                    Require(header != null && header.text.Contains("CHALLENGE 01") &&
+                            !header.text.Contains("SMOKE ON THE WATER"),
+                        "HUD hides the challenge 1 name before completion (" + header?.text + ")");
                     Require(step != null && step.text.Contains("1 / 12"),
                         "HUD shows step 1 of 12 (" + step?.text + ")");
                     Require(target != null && target.text.Contains("G2"),
@@ -785,6 +848,9 @@ namespace GuitarPlatformer.EditorTools
                         "HUD says no chord is required (" + chord?.text + ")");
                     Require(mode != null && mode.text.Contains("WALK-ON"),
                         "HUD shows walk-on during the level (" + mode?.text + ")");
+                    Require(runStatus != null && runStatus.text.Contains("MEDIUM") &&
+                            runStatus.text.Contains("LIVES 3 / 3"),
+                        "HUD shows medium and three lives (" + runStatus?.text + ")");
 
                     // A level must not be switchable to landing-only mid-challenge.
                     player.SetLandingOnly(true);
@@ -813,6 +879,10 @@ namespace GuitarPlatformer.EditorTools
                     wrong.Play(0.6f);
                     Require(levels.CurrentStepIndex == stepBefore, "wrong note keeps step progress");
                     Require(levels.MistakeCount == 1, "wrong note counts as one mistake");
+                    Require(levels.Lives == 2, "wrong note costs one life");
+                    Text status = GameObject.Find("LevelStatus")?.GetComponent<Text>();
+                    Require(status != null && status.text.Contains("LIVES 2 / 3"),
+                        "HUD counts down to two lives (" + status?.text + ")");
                     Require(Mathf.Abs(player.transform.position.x - start.transform.position.x) < 0.25f &&
                             Mathf.Abs(player.transform.position.z - start.transform.position.z) < 0.25f,
                         "wrong note teleports back to the level start pad");
@@ -901,6 +971,7 @@ namespace GuitarPlatformer.EditorTools
 
                     Require(levels.CurrentStepIndex == 1, "wrong chord keeps step progress");
                     Require(levels.MistakeCount == 2, "wrong chord counts as a mistake");
+                    Require(levels.Lives == 1, "wrong chord costs one life");
                     Require(Mathf.Abs(player.transform.position.x - previous.transform.position.x) < 0.25f &&
                             Mathf.Abs(player.transform.position.z - previous.transform.position.z) < 0.25f,
                         "wrong chord teleports to the previous correct pad");
@@ -949,16 +1020,53 @@ namespace GuitarPlatformer.EditorTools
                             targetText.text.Contains("FRET 3") && !targetText.text.Contains("FRET 6"),
                         "HUD keeps pointing at the authored pad (" + targetText?.text + ")");
 
-                    // A later wrong note must return to the pad that actually completed
-                    // the step, not the authored pad for that pitch.
+                    // The next mistake empties the last life. The challenge must restart
+                    // from step 1 with a fresh set of three lives.
                     wrong.Play(0.6f);
                     Require(levels.MistakeCount == 3,
                         "wrong note after an equivalent note counts a mistake");
-                    Require(Mathf.Abs(player.transform.position.x - equivalent.transform.position.x) < 0.25f &&
-                            Mathf.Abs(player.transform.position.z - equivalent.transform.position.z) < 0.25f,
-                        "wrong note teleports to the equivalent pad actually played");
-                    Require(levels.CurrentStepIndex == 2,
-                        "wrong note keeps step progress after an equivalent note");
+                    Require(levels.Lives == 0, "the third mistake empties the lives");
+                    Require(levels.State == LevelState.OutOfLives,
+                        "zero lives opens the out-of-lives screen");
+                    Require(player.InputLocked, "out-of-lives freezes player input");
+                    CanvasGroup outOfLives = GameObject.Find("OutOfLives")?.GetComponent<CanvasGroup>();
+                    Require(outOfLives != null && outOfLives.alpha > 0.99f,
+                        "out-of-lives overlay is visible");
+                    Text outTitle = GameObject.Find("OutTitle")?.GetComponent<Text>();
+                    Require(outTitle != null && outTitle.text == "OUT OF LIVES",
+                        "out-of-lives title shows (" + outTitle?.text + ")");
+
+                    stage = 22;
+                    stageTime = EditorApplication.timeSinceStartup;
+                    return;
+                }
+
+                if (stage == 22)
+                {
+                    if (EditorApplication.timeSinceStartup - stageTime < 1.9) return;
+
+                    PlayerController player = Object.FindAnyObjectByType<PlayerController>();
+                    LevelManager levels = Object.FindAnyObjectByType<LevelManager>();
+                    NoteTile[] tiles = Object.FindObjectsByType<NoteTile>();
+                    NoteTile start = tiles.First(t => t.stringIndex == 0 && t.isOpen);
+
+                    Require(levels.State == LevelState.Playing,
+                        "out-of-lives restarts the same challenge");
+                    Require(levels.CurrentLevelIndex == 0, "the restart keeps challenge 1");
+                    Require(levels.CurrentStepIndex == 0, "the restart returns to step 1");
+                    Require(levels.Lives == LevelManager.StartingLives,
+                        "the restart restores three lives");
+                    Require(levels.MistakeCount == 0, "the restart clears the mistake count");
+                    Require(!player.InputLocked, "the restart restores player input");
+                    Require(Mathf.Abs(player.transform.position.x - start.transform.position.x) < 0.25f &&
+                            Mathf.Abs(player.transform.position.z - start.transform.position.z) < 0.25f,
+                        "the restart teleports to the challenge start pad");
+                    CanvasGroup outOfLives = GameObject.Find("OutOfLives")?.GetComponent<CanvasGroup>();
+                    Require(outOfLives != null && outOfLives.alpha < 0.01f,
+                        "out-of-lives overlay hides after the restart");
+                    Text status = GameObject.Find("LevelStatus")?.GetComponent<Text>();
+                    Require(status != null && status.text.Contains("LIVES 3 / 3"),
+                        "HUD shows three lives after the restart (" + status?.text + ")");
 
                     stage = 14;
                     stageTime = EditorApplication.timeSinceStartup;
@@ -1000,9 +1108,12 @@ namespace GuitarPlatformer.EditorTools
                         "reveal shows Smoke on the Water (" + title?.text + ")");
                     Require(artist != null && artist.text == "Deep Purple",
                         "reveal shows Deep Purple (" + artist?.text + ")");
-                    Require(prompt != null && prompt.text.Contains("NEXT RIFF"),
-                        "reveal prompts for the next riff (" + prompt?.text + ")");
+                    Require(prompt != null && prompt.text.Contains("CHALLENGE MENU"),
+                        "reveal prompts for the challenge menu (" + prompt?.text + ")");
                     Require(reveal != null && reveal.alpha > 0.99f, "reveal card is visible");
+                    Require(levels.IsChallengeCompleted(0), "challenge 1 is marked complete");
+                    Require(levels.IsChallengeUnlocked(1), "challenge 2 unlocks after the clear");
+                    Require(!levels.IsChallengeUnlocked(2), "challenge 3 stays locked");
 
                     stage = 15;
                     stageTime = EditorApplication.timeSinceStartup;
@@ -1019,13 +1130,36 @@ namespace GuitarPlatformer.EditorTools
                     NoteTile[] tiles = Object.FindObjectsByType<NoteTile>();
 
                     levels.Advance();
-                    Require(levels.State == LevelState.Playing, "advancing reveal starts level 2");
-                    Require(levels.CurrentLevelIndex == 1, "level 2 is active");
+                    Require(levels.State == LevelState.ChallengeSelect,
+                        "the challenge 1 reveal returns to the challenge menu");
+                    Require(levels.IsChallengeCompleted(0), "challenge 1 stays complete");
+                    Require(levels.IsChallengeUnlocked(1), "challenge 2 is unlocked");
+                    Require(!levels.IsChallengeUnlocked(2), "challenge 3 is still locked");
+                    CanvasGroup challengeGroup = GameObject.Find("ChallengeMenu")?.GetComponent<CanvasGroup>();
+                    Require(challengeGroup != null && challengeGroup.alpha > 0.99f,
+                        "challenge select is visible");
+                    Text row0 = GameObject.Find("ChallengeRow_0")?.GetComponentInChildren<Text>();
+                    Text row1 = GameObject.Find("ChallengeRow_1")?.GetComponentInChildren<Text>();
+                    Text row2 = GameObject.Find("ChallengeRow_2")?.GetComponentInChildren<Text>();
+                    Require(row0 != null && row0.text.Contains("SMOKE ON THE WATER"),
+                        "the cleared challenge reveals its name (" + row0?.text + ")");
+                    Require(row1 != null && row1.text.Contains("???") &&
+                            !row1.text.Contains("SEVEN NATION ARMY"),
+                        "the unlocked challenge stays unnamed (" + row1?.text + ")");
+                    Require(row2 != null && row2.text.Contains("LOCKED"),
+                        "the third challenge remains locked (" + row2?.text + ")");
+
+                    levels.ActivateMenu(MenuScreen.Challenge, 2);
+                    Require(levels.State == LevelState.ChallengeSelect,
+                        "a locked challenge still cannot start");
+                    levels.ActivateMenu(MenuScreen.Challenge, 1);
+                    Require(levels.State == LevelState.Playing, "challenge 2 starts from the menu");
+                    Require(levels.CurrentLevelIndex == 1, "challenge 2 is active");
                     Require(levels.CurrentLevel.Title == "Seven Nation Army",
-                        "level 2 is Seven Nation Army");
+                        "challenge 2 is Seven Nation Army");
                     Require(levels.CurrentLevel.Artist == "The White Stripes",
-                        "level 2 artist is The White Stripes");
-                    Require(levels.CurrentLevel.Bpm == 124, "level 2 runs at 124 BPM");
+                        "challenge 2 artist is The White Stripes");
+                    Require(levels.CurrentLevel.Bpm == 124, "challenge 2 runs at 124 BPM");
                     Require(levels.StepCount == 14, "Seven Nation Army has 14 steps");
                     RiffPerformanceNote[] sevenNotes = RiffPerformance.Build(levels.CurrentLevel);
                     Require(sevenNotes.Length == 14, "Seven Nation Army performance has 14 events");
@@ -1035,21 +1169,26 @@ namespace GuitarPlatformer.EditorTools
                         "Seven Nation Army performance lands the last B on beat 14 (" +
                         sevenNotes[13].StartBeat.ToString("F2") + ")");
                     Require(levels.ReplayEventCount == 14, "Seven Nation Army replay reports 14 events");
-                    Require(levels.CurrentStepIndex == 0, "level 2 starts at step 1");
-                    Require(!player.LandingOnlyNotes, "level 2 keeps walk-on notes");
-                    Require(chords.ActiveCount == 0, "level 2 clears manual chords");
+                    Require(levels.CurrentStepIndex == 0, "challenge 2 starts at step 1");
+                    Require(levels.Lives == LevelManager.StartingLives, "challenge 2 starts with three lives");
+                    Require(!player.LandingOnlyNotes, "challenge 2 keeps walk-on notes");
+                    Require(chords.ActiveCount == 0, "challenge 2 clears manual chords");
                     Require(levels.TargetTile != null && levels.TargetTile.stringIndex == 1 &&
                             levels.TargetTile.fret == 7,
                         "first Seven Nation Army target is A fret 7 (E3)");
                     NoteTile start = tiles.First(t => t.stringIndex == 1 && t.isOpen);
                     Require(Mathf.Abs(player.transform.position.x - start.transform.position.x) < 0.25f &&
                             Mathf.Abs(player.transform.position.z - start.transform.position.z) < 0.25f,
-                        "level 2 teleports to the A open start pad");
+                        "challenge 2 teleports to the A open start pad");
                     CanvasGroup reveal = GameObject.Find("Reveal")?.GetComponent<CanvasGroup>();
-                    Require(reveal != null && reveal.alpha < 0.01f, "reveal card hides for level 2");
+                    Require(reveal != null && reveal.alpha < 0.01f, "reveal card hides for challenge 2");
                     Text header = GameObject.Find("LevelHeader")?.GetComponent<Text>();
-                    Require(header != null && header.text.Contains("SEVEN NATION ARMY"),
-                        "HUD names level 2 (" + header?.text + ")");
+                    Require(header != null && header.text.Contains("CHALLENGE 02") &&
+                            !header.text.Contains("SEVEN NATION ARMY"),
+                        "HUD hides the challenge 2 name (" + header?.text + ")");
+                    Text runStatus = GameObject.Find("LevelStatus")?.GetComponent<Text>();
+                    Require(runStatus != null && runStatus.text.Contains("LIVES 3 / 3"),
+                        "HUD shows three lives for challenge 2 (" + runStatus?.text + ")");
 
                     int guard = 0;
                     while (levels.State == LevelState.Playing && guard++ < 40)
@@ -1058,9 +1197,9 @@ namespace GuitarPlatformer.EditorTools
                         Require(target != null, "target exists while completing Seven Nation Army");
                         levels.OnNotePlayed(target);
                     }
-                    Require(levels.State == LevelState.Replay, "level 2 replay starts");
-                    Require(levels.SkipReplay(), "level 2 replay skips");
-                    Require(levels.State == LevelState.Reveal, "level 2 reveal shows");
+                    Require(levels.State == LevelState.Replay, "challenge 2 replay starts");
+                    Require(levels.SkipReplay(), "challenge 2 replay skips");
+                    Require(levels.State == LevelState.Reveal, "challenge 2 reveal shows");
 
                     Text title = GameObject.Find("RevealTitle")?.GetComponent<Text>();
                     Text artist = GameObject.Find("RevealArtist")?.GetComponent<Text>();
@@ -1069,8 +1208,10 @@ namespace GuitarPlatformer.EditorTools
                         "reveal shows Seven Nation Army (" + title?.text + ")");
                     Require(artist != null && artist.text == "The White Stripes",
                         "reveal shows The White Stripes (" + artist?.text + ")");
-                    Require(prompt != null && prompt.text.Contains("NEXT RIFF"),
-                        "level 2 reveal prompts for the last riff (" + prompt?.text + ")");
+                    Require(prompt != null && prompt.text.Contains("CHALLENGE MENU"),
+                        "challenge 2 reveal prompts for the menu (" + prompt?.text + ")");
+                    Require(levels.IsChallengeCompleted(1), "challenge 2 is marked complete");
+                    Require(levels.IsChallengeUnlocked(2), "challenge 3 unlocks after the clear");
 
                     stage = 16;
                     stageTime = EditorApplication.timeSinceStartup;
@@ -1087,13 +1228,27 @@ namespace GuitarPlatformer.EditorTools
                     NoteTile[] tiles = Object.FindObjectsByType<NoteTile>();
 
                     levels.Advance();
-                    Require(levels.State == LevelState.Playing, "advancing reveal starts level 3");
-                    Require(levels.CurrentLevelIndex == 2, "level 3 is active");
+                    Require(levels.State == LevelState.ChallengeSelect,
+                        "the challenge 2 reveal returns to the challenge menu");
+                    Require(levels.IsChallengeCompleted(1), "challenge 2 stays complete");
+                    Require(levels.IsChallengeUnlocked(2), "challenge 3 is unlocked");
+                    Text row1 = GameObject.Find("ChallengeRow_1")?.GetComponentInChildren<Text>();
+                    Text row2 = GameObject.Find("ChallengeRow_2")?.GetComponentInChildren<Text>();
+                    Require(row1 != null && row1.text.Contains("SEVEN NATION ARMY"),
+                        "the cleared challenge 2 reveals its name (" + row1?.text + ")");
+                    Require(row2 != null && row2.text.Contains("???") &&
+                            !row2.text.Contains("SMELLS LIKE TEEN SPIRIT"),
+                        "the unlocked challenge 3 stays unnamed (" + row2?.text + ")");
+
+                    levels.ActivateMenu(MenuScreen.Challenge, 2);
+                    Require(levels.State == LevelState.Playing, "challenge 3 starts from the menu");
+                    Require(levels.CurrentLevelIndex == 2, "challenge 3 is active");
                     Require(levels.CurrentLevel.Title == "Smells Like Teen Spirit",
-                        "level 3 is Smells Like Teen Spirit");
-                    Require(levels.CurrentLevel.Artist == "Nirvana", "level 3 artist is Nirvana");
-                    Require(levels.CurrentLevel.Bpm == 117, "level 3 runs at 117 BPM");
+                        "challenge 3 is Smells Like Teen Spirit");
+                    Require(levels.CurrentLevel.Artist == "Nirvana", "challenge 3 artist is Nirvana");
+                    Require(levels.CurrentLevel.Bpm == 117, "challenge 3 runs at 117 BPM");
                     Require(levels.StepCount == 20, "Smells Like Teen Spirit has 20 steps");
+                    Require(levels.Lives == LevelManager.StartingLives, "challenge 3 starts with three lives");
                     RiffPerformanceNote[] teenNotes = RiffPerformance.Build(levels.CurrentLevel);
                     Require(teenNotes.Length == 40, "SLTS performance plays the two-bar phrase twice (40 events)");
                     Require(teenNotes.Count(n => n.Muted) == 16,
@@ -1140,8 +1295,12 @@ namespace GuitarPlatformer.EditorTools
                     Require(levels.TargetTile != null && levels.TargetTile.stringIndex == 0 &&
                             levels.TargetTile.fret == 1,
                         "first SLTS target is low E fret 1 (F2)");
-                    Require(!player.LandingOnlyNotes, "level 3 keeps walk-on notes");
-                    Require(chords.ActiveCount == 0, "level 3 clears manual chords");
+                    Require(!player.LandingOnlyNotes, "challenge 3 keeps walk-on notes");
+                    Require(chords.ActiveCount == 0, "challenge 3 clears manual chords");
+                    Text header = GameObject.Find("LevelHeader")?.GetComponent<Text>();
+                    Require(header != null && header.text.Contains("CHALLENGE 03") &&
+                            !header.text.Contains("SMELLS LIKE TEEN SPIRIT"),
+                        "HUD hides the challenge 3 name (" + header?.text + ")");
 
                     Text chord = GameObject.Find("LevelChord")?.GetComponent<Text>();
                     Require(chord != null && chord.text.Contains("P5") && chord.text.Contains("KEY F"),
@@ -1156,6 +1315,7 @@ namespace GuitarPlatformer.EditorTools
                     target.Play(0.6f);
                     Require(levels.CurrentStepIndex == 0, "missing P5 on SLTS keeps the step");
                     Require(levels.MistakeCount == 1, "missing P5 counts as a mistake");
+                    Require(levels.Lives == 2, "missing P5 costs one life");
                     Require(Mathf.Abs(player.transform.position.x - start.transform.position.x) < 0.25f &&
                             Mathf.Abs(player.transform.position.z - start.transform.position.z) < 0.25f,
                         "missing P5 teleports to the level start pad");
@@ -1293,12 +1453,84 @@ namespace GuitarPlatformer.EditorTools
                         "reveal shows Smells Like Teen Spirit (" + title?.text + ")");
                     Require(artist != null && artist.text == "Nirvana",
                         "reveal shows Nirvana (" + artist?.text + ")");
-                    Require(prompt != null && prompt.text.Contains("FREE PLAY"),
-                        "final reveal prompts for free play (" + prompt?.text + ")");
+                    Require(prompt != null && prompt.text.Contains("CHALLENGE MENU"),
+                        "final reveal prompts for the challenge menu (" + prompt?.text + ")");
+                    Require(levels.IsChallengeCompleted(2), "challenge 3 is marked complete");
 
                     levels.Advance();
-                    Require(levels.State == LevelState.FreePlay, "final reveal returns to free play");
-                    Require(!levels.CampaignActive, "campaign ends after level 3");
+                    Require(levels.State == LevelState.ChallengeSelect,
+                        "the final reveal returns to the challenge menu");
+                    Require(levels.IsChallengeUnlocked(2), "challenge 3 remains unlocked");
+                    Text row2 = GameObject.Find("ChallengeRow_2")?.GetComponentInChildren<Text>();
+                    Require(row2 != null && row2.text.Contains("SMELLS LIKE TEEN SPIRIT"),
+                        "the final challenge reveals its name (" + row2?.text + ")");
+
+                    // Easy: wrong pads are disabled, but the chord rule still applies.
+                    levels.SetDifficulty(Difficulty.Easy);
+                    Require(levels.CurrentDifficulty == Difficulty.Easy, "easy difficulty selected");
+                    levels.StartLevel(0);
+                    Require(levels.State == LevelState.Playing, "easy challenge starts");
+                    Require(levels.Lives == LevelManager.StartingLives, "easy keeps the life counter");
+                    NoteTile[] tiles = Object.FindObjectsByType<NoteTile>();
+                    NoteTile easyWrong = tiles.First(t => t.stringIndex == 5 && t.fret == 5);
+                    NoteTile easyTarget = levels.TargetTile;
+                    Require(easyTarget != null, "easy target found");
+                    Require(!levels.CanTriggerNote(easyWrong), "easy rejects a wrong pad");
+                    easyWrong.Play(0.6f);
+                    Require(levels.CurrentStepIndex == 0, "easy wrong note keeps the step");
+                    Require(levels.MistakeCount == 0, "easy wrong note is disabled");
+                    Require(levels.Lives == LevelManager.StartingLives, "easy wrong note costs no life");
+                    Text easyStatus = GameObject.Find("LevelStatus")?.GetComponent<Text>();
+                    Require(easyStatus != null && easyStatus.text.Contains("EASY") &&
+                            easyStatus.text.Contains("WRONG NOTES DISABLED"),
+                        "HUD explains easy rules (" + easyStatus?.text + ")");
+                    easyTarget.Play(0.6f);
+                    Require(levels.CurrentStepIndex == 1, "easy target note advances");
+
+                    levels.StartLevel(2);
+                    chords.Clear();
+                    Require(levels.CurrentStepIndex == 0, "easy SLTS starts at step 1");
+                    levels.TargetTile.Play(0.6f);
+                    Require(levels.CurrentStepIndex == 0, "easy still requires the P5 chord");
+                    Require(levels.MistakeCount == 1, "easy wrong chord is a mistake");
+                    Require(levels.Lives == LevelManager.StartingLives, "easy wrong chord costs no life");
+                    chords.Clear();
+
+                    // Hard: the beacon is hidden, but the HUD keeps pointing at the pad.
+                    levels.SetDifficulty(Difficulty.Hard);
+                    Require(levels.CurrentDifficulty == Difficulty.Hard, "hard difficulty selected");
+                    levels.StartLevel(0);
+                    Require(levels.State == LevelState.Playing, "hard challenge starts");
+                    Require(!beacon.HasTarget, "hard hides the world beacon");
+                    Text hardTarget = GameObject.Find("LevelTarget")?.GetComponent<Text>();
+                    Require(hardTarget != null && hardTarget.text.Contains("G2"),
+                        "hard HUD still names the target (" + hardTarget?.text + ")");
+                    Require(levels.Lives == LevelManager.StartingLives, "hard starts with three lives");
+                    NoteTile hardWrong = tiles.First(t => t.stringIndex == 5 && t.fret == 5);
+                    hardWrong.Play(0.6f);
+                    Require(levels.MistakeCount == 1, "hard wrong note is a mistake");
+                    Require(levels.Lives == 2, "hard wrong note costs a life");
+
+                    // Pause overlay: resume and quit back to the challenge menu.
+                    levels.TogglePause();
+                    Require(levels.State == LevelState.Paused, "pause opens during a challenge");
+                    Require(player.InputLocked, "pause freezes player input");
+                    CanvasGroup pauseGroup = GameObject.Find("PauseMenu")?.GetComponent<CanvasGroup>();
+                    Require(pauseGroup != null && pauseGroup.alpha > 0.99f, "pause overlay is visible");
+                    levels.ActivateMenu(MenuScreen.Pause, 0);
+                    Require(levels.State == LevelState.Playing, "resume returns to the challenge");
+                    Require(!player.InputLocked, "resume restores player input");
+                    levels.TogglePause();
+                    levels.ActivateMenu(MenuScreen.Pause, 2);
+                    Require(levels.State == LevelState.ChallengeSelect,
+                        "pause can quit to the challenge menu");
+
+                    // Back to the main menu, then free play.
+                    levels.ActivateMenu(MenuScreen.Challenge, 3);
+                    Require(levels.State == LevelState.MainMenu, "back returns to the main menu");
+                    levels.ActivateMenu(MenuScreen.Main, 0);
+                    Require(levels.State == LevelState.FreePlay, "free play starts again from the menu");
+                    Require(!levels.CampaignActive, "free play is not a challenge");
                     Require(!player.InputLocked, "free play restores player input");
                     Require(!player.LandingOnlyNotes, "free play restores the saved walk-on mode");
                     Require(chords.ActiveCount == 0, "free play clears manual chords");
@@ -1315,9 +1547,10 @@ namespace GuitarPlatformer.EditorTools
                               "crunchy chord-level amp, palm-muted voice, landing + walk-on notes, ghosts, " +
                               "five camera views, chord toggles, triple jump without a flip, " +
                               "boost refresh without cooldown, global palm/all-string mutes, respawn, " +
-                              "free-play landing-only toggle, three-level riff campaign with sample-accurate replays, " +
-                              "same-pitch notes on other strings, mistake teleport, chord preview and " +
-                              "song reveals verified.");
+                              "free-play landing-only toggle, main menu, challenge unlocks, hidden names, " +
+                              "easy/medium/hard rules, three lives, out-of-lives restart, pause overlay, " +
+                              "sample-accurate replays, same-pitch notes on other strings, mistake teleport, " +
+                              "chord preview and song reveals verified.");
                     Finish(0);
                 }
             }

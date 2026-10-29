@@ -35,6 +35,7 @@ namespace GuitarPlatformer.EditorTools
             GameObject player = BuildPlayer(assets, root.transform);
             BuildCamera(assets, root.transform, player.transform);
             Hud hud = BuildHud(assets, root.transform);
+            BuildEventSystem(root.transform);
             BuildGame(assets, root.transform);
             BuildLighting(root.transform);
             BuildAtmosphere(assets, root.transform);

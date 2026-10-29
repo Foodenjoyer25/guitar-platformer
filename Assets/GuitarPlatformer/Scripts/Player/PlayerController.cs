@@ -358,6 +358,14 @@ namespace GuitarPlatformer
             if (landingOnlyNotes && !justLanded) return;
             if (tile == lastPlayedTile || noteDebounce > 0f) return;
 
+            // Easy challenges disable wrong pads: stepping on one must not sound,
+            // move the checkpoint, or count as a mistake.
+            if (LevelManager.Instance != null && !LevelManager.Instance.CanTriggerNote(tile))
+            {
+                lastPlayedTile = tile;
+                return;
+            }
+
             lastPlayedTile = tile;
             noteDebounce = 0.08f;
             checkpoint = new Vector3(tile.transform.position.x, FretboardLayout.PadHeight + 0.06f,
