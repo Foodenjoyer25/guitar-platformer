@@ -234,7 +234,6 @@ namespace GuitarPlatformer
             int count = Mathf.Max(1, Mathf.RoundToInt(
                 SampleRate * (totalBeats * secondsPerBeat + PerformanceTailSeconds)));
             float[] mix = new float[count];
-            int[] intervals = level.ReplayIntervals;
 
             for (int i = 0; i < notes.Length; i++)
             {
@@ -243,7 +242,8 @@ namespace GuitarPlatformer
                 if (offset >= mix.Length) continue;
 
                 float duration = Mathf.Max(0.08f, note.LengthBeats * secondsPerBeat + 0.45f);
-                float[] chord = GenerateChord(note.Midi, note.StringIndex, intervals, note.Muted, duration);
+                float[] chord = GenerateChord(note.Midi, note.StringIndex, note.ChordIntervals,
+                    note.Muted, duration);
                 MixInto(mix, chord, offset, 0.78f);
             }
 

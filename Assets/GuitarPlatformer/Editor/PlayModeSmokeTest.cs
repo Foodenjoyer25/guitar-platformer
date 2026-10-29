@@ -1108,6 +1108,35 @@ namespace GuitarPlatformer.EditorTools
                         "SLTS loop is two bars");
                     Require(levels.CurrentLevel.ReplayCycles == 2, "SLTS replay plays two cycles");
                     Require(levels.ReplayEventCount == 40, "SLTS replay reports 40 events");
+                    Require(teenNotes.Take(7).All(n => n.Midi == 41),
+                        "SLTS opens with three F hits and four muted F chugs");
+                    Require(teenNotes[7].StringIndex == 1 && teenNotes[7].Fret == 1 &&
+                            teenNotes[8].Midi == 46,
+                        "SLTS moves to Bb on the A string fret 1");
+                    Require(teenNotes[9].Midi == 40 && teenNotes[9].StringIndex == 0 &&
+                            teenNotes[9].Fret == 0,
+                        "SLTS bar 1 ends on the open low E");
+                    Require(teenNotes.Skip(10).Take(7).All(n => n.Midi == 44),
+                        "SLTS second bar opens with three Ab hits and four muted Ab chugs");
+                    Require(teenNotes[17].StringIndex == 1 && teenNotes[17].Fret == 4 &&
+                            teenNotes[18].Midi == 49,
+                        "SLTS moves to Db on the A string fret 4");
+                    Require(teenNotes[19].Midi == 40 && teenNotes[19].StringIndex == 0 &&
+                            teenNotes[19].Fret == 0,
+                        "SLTS bar 2 ends on the open low E");
+                    Require(Mathf.Abs(teenNotes[9].StartBeat - 3.5f) < 0.001f &&
+                            Mathf.Abs(teenNotes[19].StartBeat - 7.5f) < 0.001f,
+                        "SLTS open E lands on the turnaround beats");
+                    Require(teenNotes.Take(20).Where(n => n.Midi != 40)
+                            .All(n => n.ChordIntervals.SequenceEqual(new[] { 7 })),
+                        "every SLTS power-chord step keeps the P5 voicing");
+                    Require(teenNotes.Take(20).Where(n => n.Midi == 40)
+                            .All(n => n.ChordIntervals.Length == 0),
+                        "both SLTS open E steps are chord-free");
+                    Require(teenNotes[29].Midi == 40 && teenNotes[39].Midi == 40 &&
+                            teenNotes[29].ChordIntervals.Length == 0 &&
+                            teenNotes[39].ChordIntervals.Length == 0,
+                        "second SLTS cycle repeats the chord-free open E");
                     Require(levels.TargetTile != null && levels.TargetTile.stringIndex == 0 &&
                             levels.TargetTile.fret == 1,
                         "first SLTS target is low E fret 1 (F2)");
@@ -1170,12 +1199,12 @@ namespace GuitarPlatformer.EditorTools
                     chords.Toggle(-7);
                     Require(chords.MatchesExactly(new[] { 7 }), "lower fifth toggles back off");
 
-                    // Advance to the final P5 chord so the root is Db3; its lower fifth is F#2.
-                    for (int i = 0; i < 19; i++)
+                    // Advance to the last P5 chord (step 19, Db3) so its lower fifth is F#2.
+                    for (int i = 0; i < 18; i++)
                         levels.OnNotePlayed(levels.TargetTile);
-                    Require(levels.CurrentStepIndex == 19, "SLTS advances to the final P5 chord");
+                    Require(levels.CurrentStepIndex == 18, "SLTS advances to the last P5 chord");
                     target = levels.TargetTile;
-                    Require(target != null && target.midi == 49, "final SLTS root is Db3");
+                    Require(target != null && target.midi == 49, "last SLTS P5 root is Db3");
 
                     chords.Toggle(-7);
                     stage = 18;
@@ -1214,13 +1243,30 @@ namespace GuitarPlatformer.EditorTools
                     ChordManager chords = Object.FindAnyObjectByType<ChordManager>();
                     TargetBeacon beacon = TargetBeacon.Instance;
 
-                    int guard = 0;
-                    while (levels.State == LevelState.Playing && guard++ < 40)
-                    {
-                        NoteTile target = levels.TargetTile;
-                        Require(target != null, "target exists while completing SLTS");
-                        levels.OnNotePlayed(target);
-                    }
+                    NoteTile dbTarget = levels.TargetTile;
+                    Require(dbTarget != null && dbTarget.midi == 49,
+                        "SLTS step 19 is the Db3 P5 chord");
+                    Require(levels.ShouldPlayChord(dbTarget), "P5 voice plays on the Db step");
+                    int chordPlays = chords.ChordPlayCount;
+                    dbTarget.Play(0.6f);
+                    Require(chords.ChordPlayCount == chordPlays + 1,
+                        "Db step sounds the held P5 chord");
+                    Require(levels.CurrentStepIndex == 19, "SLTS advances to the open E");
+
+                    NoteTile openTarget = levels.TargetTile;
+                    Require(openTarget != null && openTarget.midi == 40 &&
+                            openTarget.stringIndex == 0 && openTarget.fret == 0,
+                        "final SLTS target is the open low E");
+                    Text levelChord = GameObject.Find("LevelChord")?.GetComponent<Text>();
+                    Require(levelChord != null && levelChord.text.Contains("NONE"),
+                        "open E requires no chord (" + levelChord?.text + ")");
+                    Require(chords.MatchesExactly(new[] { 7 }), "P5 remains held on the open E");
+                    Require(!levels.ShouldPlayChord(openTarget),
+                        "open E suppresses the held P5 voice");
+                    int openChordPlays = chords.ChordPlayCount;
+                    openTarget.Play(0.6f);
+                    Require(chords.ChordPlayCount == openChordPlays,
+                        "open E plays as a single note");
                     Require(levels.State == LevelState.Replay, "SLTS replay starts");
                     Require(player.InputLocked, "SLTS replay freezes input");
                     Require(beacon != null && !beacon.HasTarget, "SLTS replay hides the beacon");

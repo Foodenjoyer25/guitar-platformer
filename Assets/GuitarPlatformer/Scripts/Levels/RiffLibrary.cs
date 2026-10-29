@@ -54,13 +54,13 @@ namespace GuitarPlatformer
                 "");
         }
 
-        // Nirvana - Smells Like Teen Spirit. Two bars of the full F5/Bb5/Ab5/Db5
-        // riff, including the palm-muted sixteenth-note chugs. The replay plays
-        // the two-bar phrase twice.
+        // Nirvana - Smells Like Teen Spirit. The original riff roots are F, Bb, open E,
+        // Ab and Db. The open low E steps are chord-free so they ring as single notes;
+        // the power-chord steps keep the P5 voicing. The replay plays the phrase twice.
         private static RiffLevel SmellsLikeTeenSpirit()
         {
-            int[] strings = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
-            int[] frets = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4 };
+            int[] strings = { 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0 };
+            int[] frets = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0 };
             float[] starts =
             {
                 0f, 0.75f, 1f, 1.5f, 1.75f, 2f, 2.25f, 2.5f, 3f, 3.5f,
@@ -76,13 +76,18 @@ namespace GuitarPlatformer
                 false, false, false, true, true, true, true, false, false, false,
                 false, false, false, true, true, true, true, false, false, false
             };
+            bool[] chordFree =
+            {
+                false, false, false, false, false, false, false, false, false, true,
+                false, false, false, false, false, false, false, false, false, true
+            };
 
             return new RiffLevel(
                 "Smells Like Teen Spirit",
                 "Nirvana",
                 117,
                 0, 0,
-                BuildSteps(strings, frets, starts, lengths, muted),
+                BuildSteps(strings, frets, starts, lengths, muted, chordFree),
                 8f,
                 new[] { 7 },
                 "F",
@@ -90,13 +95,15 @@ namespace GuitarPlatformer
         }
 
         private static RiffStep[] BuildSteps(int[] strings, int[] frets, float[] starts, float[] lengths,
-            bool[] muted = null)
+            bool[] muted = null, bool[] chordFree = null)
         {
             var steps = new RiffStep[starts.Length];
             for (int i = 0; i < steps.Length; i++)
             {
                 bool isMuted = muted != null && i < muted.Length && muted[i];
-                steps[i] = new RiffStep(strings[i], frets[i], starts[i], lengths[i], isMuted);
+                bool isChordFree = chordFree != null && i < chordFree.Length && chordFree[i];
+                steps[i] = new RiffStep(strings[i], frets[i], starts[i], lengths[i], isMuted,
+                    isChordFree ? new int[0] : null);
             }
             return steps;
         }

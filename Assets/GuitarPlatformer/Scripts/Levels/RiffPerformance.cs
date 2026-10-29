@@ -2,7 +2,10 @@ using UnityEngine;
 
 namespace GuitarPlatformer
 {
-    /// <summary>One scheduled note event in a riff performance, already unrolled across cycles.</summary>
+    /// <summary>
+    /// One scheduled note event in a riff performance, already unrolled across cycles.
+    /// ChordIntervals is the effective voicing for the event; empty means a single note.
+    /// </summary>
     public readonly struct RiffPerformanceNote
     {
         public readonly int StepIndex;
@@ -12,9 +15,10 @@ namespace GuitarPlatformer
         public readonly int StringIndex;
         public readonly int Fret;
         public readonly bool Muted;
+        public readonly int[] ChordIntervals;
 
         public RiffPerformanceNote(int stepIndex, int cycle, float startBeat, float lengthBeats,
-            int stringIndex, int fret, bool muted)
+            int stringIndex, int fret, bool muted, int[] chordIntervals)
         {
             StepIndex = stepIndex;
             Cycle = cycle;
@@ -23,11 +27,13 @@ namespace GuitarPlatformer
             StringIndex = stringIndex;
             Fret = fret;
             Muted = muted;
+            ChordIntervals = chordIntervals;
         }
 
         public int Midi => GuitarTuning.MidiFor(StringIndex, Fret);
         public string NoteName => GuitarTuning.NoteName(Midi);
         public string StringLabel => GuitarTuning.GuitarStringNumbers[StringIndex];
+        public bool HasChord => ChordIntervals != null && ChordIntervals.Length > 0;
     }
 
     /// <summary>
@@ -52,7 +58,8 @@ namespace GuitarPlatformer
                 {
                     RiffStep step = level.Steps[i];
                     notes[index++] = new RiffPerformanceNote(i, cycle, offset + step.StartBeat,
-                        step.LengthBeats, step.StringIndex, step.Fret, step.Muted);
+                        step.LengthBeats, step.StringIndex, step.Fret, step.Muted,
+                        level.ChordIntervalsFor(step));
                 }
             }
             return notes;

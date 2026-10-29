@@ -90,9 +90,10 @@ namespace GuitarPlatformer
                     GetClip(step.Midi, step.StringIndex);
                     yield return null;
 
-                    for (int j = 0; j < level.ReplayIntervals.Length; j++)
+                    int[] intervals = level.ChordIntervalsFor(step);
+                    for (int j = 0; j < intervals.Length; j++)
                     {
-                        int midi = Mathf.Clamp(step.Midi + level.ReplayIntervals[j], 0, 127);
+                        int midi = Mathf.Clamp(step.Midi + intervals[j], 0, 127);
                         GetClip(midi, step.StringIndex);
                         yield return null;
                     }

@@ -77,7 +77,8 @@ namespace GuitarPlatformer
             Initialize();
             if (ChiptuneAudio.Instance != null)
                 ChiptuneAudio.Instance.Play(this, impact01);
-            if (ChordManager.Instance != null)
+            if (ChordManager.Instance != null &&
+                (LevelManager.Instance == null || LevelManager.Instance.ShouldPlayChord(this)))
                 ChordManager.Instance.PlayChord(this, impact01);
 
             Flash();

@@ -54,6 +54,17 @@ namespace GuitarPlatformer
         public RiffLevel CurrentLevel =>
             levels != null && levelIndex >= 0 && levelIndex < levels.Length ? levels[levelIndex] : null;
 
+        public RiffStep CurrentStep
+        {
+            get
+            {
+                RiffLevel level = CurrentLevel;
+                if (level == null || level.Steps == null || stepIndex < 0 || stepIndex >= level.Steps.Length)
+                    return null;
+                return level.Steps[stepIndex];
+            }
+        }
+
         public NoteTile StartPadTile
         {
             get
@@ -189,7 +200,27 @@ namespace GuitarPlatformer
         {
             RiffLevel level = CurrentLevel;
             if (level == null) return false;
-            return chords != null && chords.MatchesExactly(level.RequiredIntervals);
+
+            // A chord-free step accepts any held chord, so the player can keep P5
+            // selected through the single-note open E without it counting as a mistake.
+            RiffStep step = CurrentStep;
+            if (step != null && step.IsChordFree) return true;
+
+            return chords != null && chords.MatchesExactly(level.ChordIntervalsFor(step));
+        }
+
+        /// <summary>
+        /// True when the manual chord voice should sound for this pad. Chord-free steps
+        /// suppress the held voicing on their target pitch so they ring as single notes.
+        /// </summary>
+        public bool ShouldPlayChord(NoteTile tile)
+        {
+            if (state != LevelState.Playing || tile == null || targetTile == null) return true;
+
+            RiffStep step = CurrentStep;
+            if (step == null || !step.IsChordFree) return true;
+
+            return tile.midi != targetTile.midi;
         }
 
         private bool IsSafePad(NoteTile tile)
@@ -439,7 +470,14 @@ namespace GuitarPlatformer
             RiffLevel level = CurrentLevel;
             if (hud == null || level == null) return;
 
-            int[] required = level.RequiredIntervals;
+            RiffStep step = CurrentStep;
+            if (step != null && step.IsChordFree)
+            {
+                hud.SetChordRequirement("NONE", true);
+                return;
+            }
+
+            int[] required = level.ChordIntervalsFor(step);
             if (required == null || required.Length == 0)
             {
                 hud.SetChordRequirement("NONE", true);
