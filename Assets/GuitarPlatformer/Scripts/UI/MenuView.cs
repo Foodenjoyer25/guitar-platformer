@@ -23,6 +23,7 @@ namespace GuitarPlatformer
         [SerializeField] private CanvasGroup challengeGroup;
         [SerializeField] private CanvasGroup pauseGroup;
         [SerializeField] private CanvasGroup outOfLivesGroup;
+        [SerializeField] private CanvasGroup intervalGroup;
 
         [Header("Rows")]
         [SerializeField] private MenuRow[] mainRows;
@@ -30,10 +31,14 @@ namespace GuitarPlatformer
         [SerializeField] private MenuRow backRow;
         [SerializeField] private MenuRow[] difficultyRows;
         [SerializeField] private MenuRow[] pauseRows;
+        [SerializeField] private MenuRow[] intervalRows;
+        [SerializeField] private MenuRow[] presetRows;
+        [SerializeField] private MenuRow intervalBackRow;
 
         [Header("Challenge text")]
         [SerializeField] private Text challengeStatus;
         [SerializeField] private Text difficultyDescription;
+        [SerializeField] private Text intervalChordSummary;
 
         private static readonly Color NormalBg = new Color(0.02f, 0.015f, 0.05f, 0.9f);
         private static readonly Color SelectedBg = new Color(0.08f, 0.5f, 0.65f, 0.96f);
@@ -100,10 +105,63 @@ namespace GuitarPlatformer
                 }
             }
 
-            SetRow(backRow, selected == 3, false, false, null);
+            int backIdx = challengeRows != null ? challengeRows.Length : 3;
+            SetRow(backRow, selected == backIdx, false, false, null);
             SetDifficultyRows(difficulty);
             if (challengeStatus != null) challengeStatus.text = status ?? "";
             if (difficultyDescription != null) difficultyDescription.text = DifficultyHelp(difficulty);
+        }
+
+        public void ConfigureIntervals(CanvasGroup group, MenuRow[] rows, MenuRow[] presets,
+            MenuRow back, Text summary)
+        {
+            intervalGroup = group;
+            intervalRows = rows;
+            presetRows = presets;
+            intervalBackRow = back;
+            intervalChordSummary = summary;
+        }
+
+        public void ShowIntervalMenu(int selected, bool[] active, string summary)
+        {
+            HideAll();
+            SetGroup(intervalGroup, true);
+
+            if (intervalRows != null && active != null)
+            {
+                for (int i = 0; i < intervalRows.Length; i++)
+                {
+                    bool isActive = i < active.Length && active[i];
+                    bool isSelected = selected == i;
+                    SetIntervalRow(intervalRows[i], isSelected, isActive);
+                }
+            }
+
+            int presetOffset = intervalRows != null ? intervalRows.Length : 0;
+            if (presetRows != null)
+            {
+                for (int i = 0; i < presetRows.Length; i++)
+                {
+                    bool isSelected = selected == presetOffset + i;
+                    SetRow(presetRows[i], isSelected, false, false, null);
+                }
+            }
+
+            int backIndex = presetOffset + (presetRows != null ? presetRows.Length : 0);
+            SetRow(intervalBackRow, selected == backIndex, false, false, null);
+
+            if (intervalChordSummary != null)
+                intervalChordSummary.text = string.IsNullOrEmpty(summary) ? "ACTIVE: NONE (SINGLE NOTES)" : "ACTIVE: " + summary;
+        }
+
+        private void SetIntervalRow(MenuRow row, bool selected, bool active)
+        {
+            if (row == null) return;
+            Color background = selected ? SelectedBg : active ? CompletedBg : NormalBg;
+            Color foreground = selected ? SelectedText : active ? CompletedText : NormalText;
+
+            if (row.background != null) row.background.color = background;
+            if (row.label != null) row.label.color = foreground;
         }
 
         public void ShowPause(int selected)
@@ -125,6 +183,7 @@ namespace GuitarPlatformer
             SetGroup(challengeGroup, false);
             SetGroup(pauseGroup, false);
             SetGroup(outOfLivesGroup, false);
+            SetGroup(intervalGroup, false);
         }
 
         public void SetDifficulty(Difficulty difficulty)

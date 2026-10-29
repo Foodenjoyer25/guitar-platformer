@@ -1,6 +1,6 @@
 namespace GuitarPlatformer
 {
-    /// <summary>The three-riff campaign, in play order.</summary>
+    /// <summary>The four-riff campaign, in play order.</summary>
     public static class RiffLibrary
     {
         public static RiffLevel[] CreateLevels()
@@ -9,7 +9,8 @@ namespace GuitarPlatformer
             {
                 SmokeOnTheWater(),
                 SevenNationArmy(),
-                SmellsLikeTeenSpirit()
+                SmellsLikeTeenSpirit(),
+                BackInBlack()
             };
         }
 
@@ -91,6 +92,39 @@ namespace GuitarPlatformer
                 8f,
                 new[] { 7 },
                 "F",
+                2);
+        }
+
+        // AC/DC - Back in Black. Low E open is the safe start pad.
+        // The signature intro: E5, D5 (3 hits), A5 (3 hits), and the high turnaround lick.
+        // Open chords use the theoretical P5 voicing, and the lick notes are chord-free.
+        private static RiffLevel BackInBlack()
+        {
+            int[] strings = { 0, 2, 2, 2, 1, 1, 1, 5, 5, 4, 4, 3 };
+            int[] frets =   { 0, 0, 0, 0, 0, 0, 0, 3, 0, 3, 0, 2 };
+            float[] starts =
+            {
+                0f, 2f, 2.5f, 3f, 4f, 4.5f, 5f, 6f, 6.25f, 6.5f, 6.75f, 7f
+            };
+            float[] lengths =
+            {
+                0.75f, 0.25f, 0.25f, 0.5f, 0.25f, 0.25f, 0.5f, 0.2f, 0.2f, 0.2f, 0.2f, 0.75f
+            };
+            bool[] muted = new bool[12];
+            bool[] chordFree =
+            {
+                false, false, false, false, false, false, false, true, true, true, true, true
+            };
+
+            return new RiffLevel(
+                "Back in Black",
+                "AC/DC",
+                92,
+                0, 0,
+                BuildSteps(strings, frets, starts, lengths, muted, chordFree),
+                9f,
+                new[] { 7 },
+                "E",
                 2);
         }
 

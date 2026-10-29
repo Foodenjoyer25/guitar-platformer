@@ -144,9 +144,11 @@ namespace GuitarPlatformer.EditorTools
                     Require(levels.IsChallengeUnlocked(0), "challenge 1 is unlocked");
                     Require(!levels.IsChallengeUnlocked(1), "challenge 2 is locked");
                     Require(!levels.IsChallengeUnlocked(2), "challenge 3 is locked");
+                    Require(!levels.IsChallengeUnlocked(3), "challenge 4 is locked");
                     Text challengeRow0 = GameObject.Find("ChallengeRow_0")?.GetComponentInChildren<Text>();
                     Text challengeRow1 = GameObject.Find("ChallengeRow_1")?.GetComponentInChildren<Text>();
                     Text challengeRow2 = GameObject.Find("ChallengeRow_2")?.GetComponentInChildren<Text>();
+                    Text challengeRow3 = GameObject.Find("ChallengeRow_3")?.GetComponentInChildren<Text>();
                     Require(challengeRow0 != null && challengeRow0.text.Contains("???") &&
                             !challengeRow0.text.Contains("SMOKE ON THE WATER"),
                         "challenge 1 name stays hidden (" + challengeRow0?.text + ")");
@@ -154,13 +156,15 @@ namespace GuitarPlatformer.EditorTools
                         "challenge 2 shows locked (" + challengeRow1?.text + ")");
                     Require(challengeRow2 != null && challengeRow2.text.Contains("LOCKED"),
                         "challenge 3 shows locked (" + challengeRow2?.text + ")");
+                    Require(challengeRow3 != null && challengeRow3.text.Contains("LOCKED"),
+                        "challenge 4 shows locked (" + challengeRow3?.text + ")");
                     levels.HoverMenu(MenuScreen.Challenge, 1);
                     Require(levels.ChallengeMenuSelection == 1,
                         "mouse hover moves the challenge selection");
                     levels.ActivateMenu(MenuScreen.Challenge, 2);
                     Require(levels.State == LevelState.ChallengeSelect,
                         "a locked challenge cannot start");
-                    levels.ActivateMenu(MenuScreen.Challenge, 3);
+                    levels.ActivateMenu(MenuScreen.Challenge, 4);
                     Require(levels.State == LevelState.MainMenu, "back returns to the main menu");
 
                     // Free play keeps the original sandbox and the L note-mode toggle.
@@ -1459,11 +1463,97 @@ namespace GuitarPlatformer.EditorTools
 
                     levels.Advance();
                     Require(levels.State == LevelState.ChallengeSelect,
-                        "the final reveal returns to the challenge menu");
-                    Require(levels.IsChallengeUnlocked(2), "challenge 3 remains unlocked");
+                        "the challenge 3 reveal returns to the challenge menu");
+                    Require(levels.IsChallengeCompleted(2), "challenge 3 remains complete");
+                    Require(levels.IsChallengeUnlocked(3), "challenge 4 unlocks after challenge 3");
                     Text row2 = GameObject.Find("ChallengeRow_2")?.GetComponentInChildren<Text>();
+                    Text row3 = GameObject.Find("ChallengeRow_3")?.GetComponentInChildren<Text>();
                     Require(row2 != null && row2.text.Contains("SMELLS LIKE TEEN SPIRIT"),
-                        "the final challenge reveals its name (" + row2?.text + ")");
+                        "the cleared challenge 3 reveals its name (" + row2?.text + ")");
+                    Require(row3 != null && row3.text.Contains("???") &&
+                            !row3.text.Contains("BACK IN BLACK"),
+                        "the unlocked challenge 4 stays unnamed (" + row3?.text + ")");
+
+                    // Start Challenge 4 (Back in Black)
+                    levels.ActivateMenu(MenuScreen.Challenge, 3);
+                    Require(levels.State == LevelState.Playing, "challenge 4 starts from the menu");
+                    Require(levels.CurrentLevelIndex == 3, "challenge 4 is active");
+                    Require(levels.CurrentLevel.Title == "Back in Black", "challenge 4 is Back in Black");
+                    Require(levels.CurrentLevel.Artist == "AC/DC", "challenge 4 artist is AC/DC");
+                    Require(levels.CurrentLevel.Bpm == 92, "challenge 4 runs at 92 BPM");
+                    Require(levels.StepCount == 12, "Back in Black has 12 steps");
+                    Require(levels.Lives == LevelManager.StartingLives, "challenge 4 starts with three lives");
+                    RiffPerformanceNote[] bibNotes = RiffPerformance.Build(levels.CurrentLevel);
+                    Require(bibNotes.Length == 24, "Back in Black performance plays two cycles (24 events)");
+                    Require(levels.ReplayEventCount == 24, "Back in Black replay reports 24 events");
+                    Require(levels.TargetTile != null && levels.TargetTile.stringIndex == 0 &&
+                            levels.TargetTile.fret == 0,
+                        "first Back in Black target is open low E");
+                    chords.Toggle(7);
+                    Require(chords.MatchesExactly(new[] { 7 }), "P5 chord active for Back in Black open chords");
+
+                    // Complete Back in Black
+                    int bibGuard = 0;
+                    while (levels.State == LevelState.Playing && bibGuard++ < 24)
+                    {
+                        NoteTile t = levels.TargetTile;
+                        Require(t != null, "target exists while completing Back in Black");
+                        levels.OnNotePlayed(t);
+                    }
+                    Require(levels.State == LevelState.Replay, "challenge 4 replay starts");
+                    Require(levels.SkipReplay(), "challenge 4 replay skips");
+                    Require(levels.State == LevelState.Reveal, "challenge 4 reveal shows");
+                    Text bibTitle = GameObject.Find("RevealTitle")?.GetComponent<Text>();
+                    Text bibArtist = GameObject.Find("RevealArtist")?.GetComponent<Text>();
+                    Require(bibTitle != null && bibTitle.text == "Back in Black",
+                        "reveal shows Back in Black (" + bibTitle?.text + ")");
+                    Require(bibArtist != null && bibArtist.text == "AC/DC",
+                        "reveal shows AC/DC (" + bibArtist?.text + ")");
+                    Require(levels.IsChallengeCompleted(3), "challenge 4 is marked complete");
+
+                    levels.Advance();
+                    Require(levels.State == LevelState.ChallengeSelect,
+                        "the challenge 4 reveal returns to the challenge menu");
+                    row3 = GameObject.Find("ChallengeRow_3")?.GetComponentInChildren<Text>();
+                    Require(row3 != null && row3.text.Contains("BACK IN BLACK"),
+                        "the cleared challenge 4 reveals its name (" + row3?.text + ")");
+
+                    // Interval Selection Menu & Theory Presets tests
+                    levels.OpenIntervalMenu();
+                    Require(levels.State == LevelState.IntervalMenu, "interval menu opens");
+                    Require(player.InputLocked, "interval menu freezes player input");
+                    CanvasGroup intervalMenuGrp = GameObject.Find("IntervalMenu")?.GetComponent<CanvasGroup>();
+                    Require(intervalMenuGrp != null && intervalMenuGrp.alpha > 0.99f,
+                        "interval menu is visible");
+
+                    // Test Power Chord preset (P5)
+                    levels.ActivateMenu(MenuScreen.Preset, 0);
+                    Require(chords.MatchesExactly(new[] { 7 }), "Power preset activates P5");
+
+                    // Test Major Chord preset (M3 + P5)
+                    levels.ActivateMenu(MenuScreen.Preset, 1);
+                    Require(chords.MatchesExactly(new[] { 4, 7 }), "Major preset activates M3 + P5");
+
+                    // Test Minor Chord preset (m3 + P5)
+                    levels.ActivateMenu(MenuScreen.Preset, 2);
+                    Require(chords.MatchesExactly(new[] { 3, 7 }), "Minor preset activates m3 + P5");
+
+                    // Test Sus4 preset (P4 + P5)
+                    levels.ActivateMenu(MenuScreen.Preset, 3);
+                    Require(chords.MatchesExactly(new[] { 5, 7 }), "Sus4 preset activates P4 + P5");
+
+                    // Test Clear preset
+                    levels.ActivateMenu(MenuScreen.Preset, 4);
+                    Require(chords.ActiveCount == 0, "Clear preset resets active intervals");
+
+                    // Test manual interval toggle in menu (toggle P5)
+                    levels.ActivateMenu(MenuScreen.Interval, 0);
+                    Require(chords.MatchesExactly(new[] { 7 }), "manual interval toggle works from menu");
+                    chords.Clear();
+
+                    // Close interval menu
+                    levels.ActivateMenu(MenuScreen.Interval, ChordManager.Intervals.Length + 5);
+                    Require(levels.State != LevelState.IntervalMenu, "interval menu closes");
 
                     // Easy: wrong pads are disabled, but the chord rule still applies.
                     levels.SetDifficulty(Difficulty.Easy);
@@ -1526,7 +1616,7 @@ namespace GuitarPlatformer.EditorTools
                         "pause can quit to the challenge menu");
 
                     // Back to the main menu, then free play.
-                    levels.ActivateMenu(MenuScreen.Challenge, 3);
+                    levels.ActivateMenu(MenuScreen.Challenge, 4);
                     Require(levels.State == LevelState.MainMenu, "back returns to the main menu");
                     levels.ActivateMenu(MenuScreen.Main, 0);
                     Require(levels.State == LevelState.FreePlay, "free play starts again from the menu");

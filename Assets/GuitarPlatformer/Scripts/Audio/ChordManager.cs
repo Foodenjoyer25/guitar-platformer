@@ -19,32 +19,40 @@ namespace GuitarPlatformer
             public readonly Key key;
             public readonly int semitones;
             public readonly string label;
+            public readonly string fullName;
 
-            public ChordInterval(Key key, int semitones, string label)
+            public ChordInterval(Key key, int semitones, string label, string fullName = "")
             {
                 this.key = key;
                 this.semitones = semitones;
                 this.label = label;
+                this.fullName = string.IsNullOrEmpty(fullName) ? label : fullName;
             }
         }
 
+        public static readonly int[] PresetPowerChord = { 7 };
+        public static readonly int[] PresetMajor = { 4, 7 };
+        public static readonly int[] PresetMinor = { 3, 7 };
+        public static readonly int[] PresetSus4 = { 5, 7 };
+        public static readonly int[] PresetOpenFifth = { 7, 12 };
+
         // Requested toggles first, then a suggested layout for the remaining intervals.
-        // No key collides with movement, jump, sprint, boost, camera or respawn.
+        // Covers all theoretical chromatic intervals: m2, M2, m3, M3, P4, TT, P5, m6, M6, m7, M7, 8va, P5 down.
         public static readonly ChordInterval[] Intervals =
         {
-            new ChordInterval(Key.F, 7, "P5"),
-            new ChordInterval(Key.J, -7, "P5\u2193"),
-            new ChordInterval(Key.E, 3, "m3"),
-            new ChordInterval(Key.R, 4, "M3"),
-            new ChordInterval(Key.T, 5, "P4"),
-            new ChordInterval(Key.Y, 2, "M2"),
-            new ChordInterval(Key.C, 8, "m6"),
-            new ChordInterval(Key.G, 9, "M6"),
-            new ChordInterval(Key.H, 10, "m7"),
-            new ChordInterval(Key.Z, 1, "m2"),
-            new ChordInterval(Key.X, 6, "TT"),
-            new ChordInterval(Key.B, 11, "M7"),
-            new ChordInterval(Key.Q, 12, "8va")
+            new ChordInterval(Key.F, 7, "P5", "PERFECT 5TH  ·  +7"),
+            new ChordInterval(Key.J, -7, "P5\u2193", "LOWER 5TH  ·  -7"),
+            new ChordInterval(Key.E, 3, "m3", "MINOR 3RD  ·  +3"),
+            new ChordInterval(Key.R, 4, "M3", "MAJOR 3RD  ·  +4"),
+            new ChordInterval(Key.T, 5, "P4", "PERFECT 4TH  ·  +5"),
+            new ChordInterval(Key.Y, 2, "M2", "MAJOR 2ND  ·  +2"),
+            new ChordInterval(Key.C, 8, "m6", "MINOR 6TH  ·  +8"),
+            new ChordInterval(Key.G, 9, "M6", "MAJOR 6TH  ·  +9"),
+            new ChordInterval(Key.H, 10, "m7", "MINOR 7TH  ·  +10"),
+            new ChordInterval(Key.Z, 1, "m2", "MINOR 2ND  ·  +1"),
+            new ChordInterval(Key.X, 6, "TT", "TRITONE  ·  +6"),
+            new ChordInterval(Key.B, 11, "M7", "MAJOR 7TH  ·  +11"),
+            new ChordInterval(Key.Q, 12, "8va", "OCTAVE  ·  +12")
         };
 
         private readonly HashSet<int> active = new HashSet<int>();
@@ -143,6 +151,18 @@ namespace GuitarPlatformer
         {
             if (active.Count == 0) return;
             active.Clear();
+            RefreshHud();
+            ActiveChanged?.Invoke();
+        }
+
+        public void ApplyPreset(int[] semitones)
+        {
+            active.Clear();
+            if (semitones != null)
+            {
+                for (int i = 0; i < semitones.Length; i++)
+                    active.Add(semitones[i]);
+            }
             RefreshHud();
             ActiveChanged?.Invoke();
         }

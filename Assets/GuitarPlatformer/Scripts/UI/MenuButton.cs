@@ -9,7 +9,9 @@ namespace GuitarPlatformer
         Challenge,
         Difficulty,
         Pause,
-        Reveal
+        Reveal,
+        Interval,
+        Preset
     }
 
     /// <summary>
