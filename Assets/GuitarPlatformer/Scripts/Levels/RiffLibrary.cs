@@ -1,8 +1,9 @@
+using System;
 using System.Collections.Generic;
 
 namespace GuitarPlatformer
 {
-    /// <summary>The four-riff campaign plus any custom levels saved by the Level Creator.</summary>
+    /// <summary>The campaign riffs plus any extra custom levels saved by the Level Creator.</summary>
     public static class RiffLibrary
     {
         public static RiffLevel[] CreateCampaignLevels()
@@ -12,7 +13,8 @@ namespace GuitarPlatformer
                 SmokeOnTheWater(),
                 SevenNationArmy(),
                 SmellsLikeTeenSpirit(),
-                BackInBlack()
+                BackInBlack(),
+                DoIWannaKnow()
             };
         }
 
@@ -22,9 +24,22 @@ namespace GuitarPlatformer
             RiffLevel[] custom = CustomLevelLibrary.LoadAll();
             if (custom.Length == 0) return campaign;
 
+            var titles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var levels = new List<RiffLevel>(campaign.Length + custom.Length);
-            levels.AddRange(campaign);
-            levels.AddRange(custom);
+            for (int i = 0; i < campaign.Length; i++)
+            {
+                if (campaign[i] == null) continue;
+                titles.Add(campaign[i].Title);
+                levels.Add(campaign[i]);
+            }
+
+            for (int i = 0; i < custom.Length; i++)
+            {
+                if (custom[i] == null || titles.Contains(custom[i].Title)) continue;
+                titles.Add(custom[i].Title);
+                levels.Add(custom[i]);
+            }
+
             return levels.ToArray();
         }
 
@@ -109,13 +124,14 @@ namespace GuitarPlatformer
                 2);
         }
 
-        // AC/DC - Back in Black. Low E open is the safe start pad.
-        // Concert tempo is q=93 in 4/4. Phrase 1 and the chord hits keep the 1.75
-        // rests with D/A as 16th down-up-downs and lick 1 as 3p0 3p0 2b3r2p0.
-        // Lick 2: same 1.75 rest after the last A as lick 1, then B-pedal 4-5-6-7 with
-        // each walk note a 16th after its B.
-        // Open chords use P5; lick notes are chord-free.
+        // AC/DC - Back in Black. Imported from the Level Creator JSON; the fallback
+        // matches that file if Resources/Levels/back-in-black.json is missing.
         private static RiffLevel BackInBlack()
+        {
+            return CustomLevelLibrary.LoadNamed("back-in-black") ?? BackInBlackFallback();
+        }
+
+        private static RiffLevel BackInBlackFallback()
         {
             int[] strings =
             {
@@ -129,14 +145,14 @@ namespace GuitarPlatformer
             };
             float[] starts =
             {
-                0f, 1.75f, 2f, 2.25f, 4f, 4.25f, 4.5f,
-                6.25f, 6.5f, 6.75f, 7f, 7.25f, 7.375f, 7.5f, 7.75f,
-                8f, 9.75f, 10f, 10.25f, 12f, 12.25f, 12.5f,
-                14.25f, 14.5f, 15.25f, 15.5f, 16.25f, 16.5f, 17.25f, 17.5f
+                0f, 1.5f, 1.75f, 2f, 3.5f, 3.75f, 4f,
+                6.25f, 6.5f, 6.75f, 7f, 7.25f, 7.43f, 7.5f, 7.75f,
+                8f, 9.5f, 9.75f, 10f, 11.5f, 11.75f, 12f,
+                13f, 13.25f, 13.75f, 14f, 14.5f, 14.75f, 15.25f, 15.5f
             };
             float[] lengths =
             {
-                0.2f, 0.2f, 0.2f, 0.15f, 0.2f, 0.2f, 0.15f,
+                0.2f, 0.2f, 0.2f, 0.15f, 0.25f, 0.2f, 0.15f,
                 0.2f, 0.2f, 0.2f, 0.2f, 0.12f, 0.1f, 0.1f, 0.25f,
                 0.2f, 0.2f, 0.2f, 0.15f, 0.2f, 0.2f, 0.15f,
                 0.18f, 0.18f, 0.18f, 0.18f, 0.18f, 0.18f, 0.18f, 0.22f
@@ -156,9 +172,47 @@ namespace GuitarPlatformer
                 93,
                 0, 0,
                 BuildSteps(strings, frets, starts, lengths, muted, chordFree),
-                17.75f,
+                16f,
                 new[] { 7 },
                 "E");
+        }
+
+        // Arctic Monkeys - Do I Wanna Know? Imported from the Level Creator JSON.
+        private static RiffLevel DoIWannaKnow()
+        {
+            return CustomLevelLibrary.LoadNamed("do-i-wanna-know") ?? DoIWannaKnowFallback();
+        }
+
+        private static RiffLevel DoIWannaKnowFallback()
+        {
+            int[] strings =
+            {
+                0, 0, 1, 0, 0, 0, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0
+            };
+            int[] frets =
+            {
+                1, 3, 1, 3, 1, 3, 1, 3, 1, 5, 3, 1, 3, 5, 3, 1, 3, 5, 5, 3
+            };
+            float[] starts =
+            {
+                0f, 0.25f, 0.5f, 1f, 3.5f, 3.75f, 4f, 4.5f, 5f, 6.5f,
+                7f, 8.75f, 9f, 9.25f, 9.5f, 11.25f, 11.5f, 11.75f, 12.25f, 12.75f
+            };
+            float[] lengths =
+            {
+                0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.25f,
+                0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.25f, 0.25f
+            };
+
+            return new RiffLevel(
+                "Do I Wanna Know?",
+                "Arctic Monkeys",
+                85,
+                0, 0,
+                BuildSteps(strings, frets, starts, lengths),
+                14f,
+                new int[0],
+                "");
         }
 
         private static RiffStep[] BuildSteps(int[] strings, int[] frets, float[] starts, float[] lengths,

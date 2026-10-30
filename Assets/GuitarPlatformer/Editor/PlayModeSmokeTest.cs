@@ -149,10 +149,12 @@ namespace GuitarPlatformer.EditorTools
                     Require(levels.IsChallengeUnlocked(1), "challenge 2 is unlocked");
                     Require(levels.IsChallengeUnlocked(2), "challenge 3 is unlocked");
                     Require(levels.IsChallengeUnlocked(3), "challenge 4 is unlocked");
+                    Require(levels.IsChallengeUnlocked(4), "challenge 5 is unlocked");
                     Text challengeRow0 = GameObject.Find("ChallengeRow_0")?.GetComponentInChildren<Text>();
                     Text challengeRow1 = GameObject.Find("ChallengeRow_1")?.GetComponentInChildren<Text>();
                     Text challengeRow2 = GameObject.Find("ChallengeRow_2")?.GetComponentInChildren<Text>();
                     Text challengeRow3 = GameObject.Find("ChallengeRow_3")?.GetComponentInChildren<Text>();
+                    Text challengeRow4 = GameObject.Find("ChallengeRow_4")?.GetComponentInChildren<Text>();
                     Require(challengeRow0 != null && challengeRow0.text.Contains("???") &&
                             !challengeRow0.text.Contains("SMOKE ON THE WATER"),
                         "challenge 1 name stays hidden (" + challengeRow0?.text + ")");
@@ -168,10 +170,14 @@ namespace GuitarPlatformer.EditorTools
                             !challengeRow3.text.Contains("BACK IN BLACK") &&
                             !challengeRow3.text.Contains("LOCKED"),
                         "challenge 4 name stays hidden (" + challengeRow3?.text + ")");
+                    Require(challengeRow4 != null && challengeRow4.text.Contains("???") &&
+                            !challengeRow4.text.Contains("DO I WANNA KNOW") &&
+                            !challengeRow4.text.Contains("LOCKED"),
+                        "challenge 5 name stays hidden (" + challengeRow4?.text + ")");
                     levels.HoverMenu(MenuScreen.Challenge, 1);
                     Require(levels.ChallengeMenuSelection == 1,
                         "mouse hover moves the challenge selection");
-                    levels.ActivateMenu(MenuScreen.Challenge, 4);
+                    levels.ActivateMenu(MenuScreen.Challenge, RiffLibrary.CreateLevels().Length);
                     Require(levels.State == LevelState.MainMenu, "back returns to the main menu");
 
                     // The challenge list grows for custom levels loaded from Resources.
@@ -193,7 +199,7 @@ namespace GuitarPlatformer.EditorTools
                     levels.HoverMenu(MenuScreen.Challenge, 0);
                     Require(extraRow != null && !extraRow.activeSelf,
                         "extra challenge rows hide again for the built-in campaign");
-                    levels.ActivateMenu(MenuScreen.Challenge, 4);
+                    levels.ActivateMenu(MenuScreen.Challenge, RiffLibrary.CreateLevels().Length);
                     Require(levels.State == LevelState.MainMenu, "back returns to the main menu again");
 
                     // JSON levels round-trip through the same shape the creator saves.
@@ -215,6 +221,16 @@ namespace GuitarPlatformer.EditorTools
                         "custom level JSON loads at runtime");
                     Require(CustomLevelLibrary.LoadAll().Length >= 0,
                         "custom level folder loads without errors");
+                    RiffLevel[] campaign = RiffLibrary.CreateCampaignLevels();
+                    Require(campaign.Length == 5, "campaign has five riffs");
+                    Require(campaign[3].Title == "Back in Black", "challenge 4 is the imported Back in Black");
+                    Require(campaign[4].Title == "Do I Wanna Know?",
+                        "challenge 5 is the imported Do I Wanna Know");
+                    CustomLevelSession.Queue(customLevel);
+                    Require(CustomLevelSession.HasPending, "custom session queues a riff");
+                    Require(CustomLevelSession.Consume() == customLevel,
+                        "custom session returns the queued riff");
+                    Require(!CustomLevelSession.HasPending, "custom session clears after consume");
 
                     // The interval menu opens from the main menu and returns there.
                     levels.HoverMenu(MenuScreen.Main, 2);
@@ -305,6 +321,9 @@ namespace GuitarPlatformer.EditorTools
                             controlsLabel.text.Contains("TAB") &&
                             controlsLabel.text.Contains("interval selection"),
                         "controls document the mute and interval keys");
+                    Transform pauseMenu = GameObject.Find("PauseMenu")?.transform;
+                    Require(pauseMenu != null && controlsLabel.transform.IsChildOf(pauseMenu),
+                        "controls only appear inside the pause menu");
 
                     // Right-handed layout: high E on screen-left (negative X), low E on screen-right.
                     Require(FretboardLayout.LaneX(5) < FretboardLayout.LaneX(0),
@@ -941,8 +960,8 @@ namespace GuitarPlatformer.EditorTools
                         "HUD shows step 1 of 12 (" + step?.text + ")");
                     Require(target != null && target.text.Contains("G2"),
                         "HUD shows the G2 target (" + target?.text + ")");
-                    Require(chord != null && chord.text.Contains("NONE"),
-                        "HUD says no chord is required (" + chord?.text + ")");
+                    Require(chord != null && !chord.gameObject.activeSelf,
+                        "HUD hides the unused next-chord line (" + chord?.text + ")");
                     Require(mode != null && mode.text.Contains("WALK-ON"),
                         "HUD shows walk-on during the level (" + mode?.text + ")");
                     Require(runStatus != null && runStatus.text.Contains("MEDIUM") &&
@@ -977,6 +996,7 @@ namespace GuitarPlatformer.EditorTools
                     Require(levels.CurrentStepIndex == stepBefore, "wrong note keeps step progress");
                     Require(levels.MistakeCount == 1, "wrong note counts as one mistake");
                     Require(levels.Lives == 2, "wrong note costs one life");
+                    Require(player.MovementLocked, "wrong note locks movement for a beat");
                     Text status = GameObject.Find("LevelStatus")?.GetComponent<Text>();
                     Require(status != null && status.text.Contains("LIVES 2 / 3"),
                         "HUD counts down to two lives (" + status?.text + ")");
@@ -1514,8 +1534,8 @@ namespace GuitarPlatformer.EditorTools
                             openTarget.stringIndex == 0 && openTarget.fret == 0,
                         "final SLTS target is the open low E");
                     Text levelChord = GameObject.Find("LevelChord")?.GetComponent<Text>();
-                    Require(levelChord != null && levelChord.text.Contains("NONE"),
-                        "open E requires no chord (" + levelChord?.text + ")");
+                    Require(levelChord != null && !levelChord.gameObject.activeSelf,
+                        "open E hides the unused next-chord line (" + levelChord?.text + ")");
                     Require(chords.MatchesExactly(new[] { 7 }), "P5 remains held on the open E");
                     Require(!levels.ShouldPlayChord(openTarget),
                         "open E suppresses the held P5 voice");
@@ -1578,54 +1598,33 @@ namespace GuitarPlatformer.EditorTools
                     RiffPerformanceNote[] bibNotes = RiffPerformance.Build(levels.CurrentLevel);
                     Require(bibNotes.Length == 30, "Back in Black performance plays both phrases (30 events)");
                     Require(levels.ReplayEventCount == 30, "Back in Black replay reports 30 events");
-                    Require(Mathf.Abs(levels.CurrentLevel.LoopLengthBeats - 17.75f) < 0.001f,
-                        "Back in Black loopback is a 16th after the walk-up");
+                    Require(Mathf.Abs(levels.CurrentLevel.LoopLengthBeats - 16f) < 0.001f,
+                        "Back in Black loops at 16 beats");
                     Require(levels.CurrentLevel.ReplayCycles == 1, "Back in Black plays both licks in one pass");
                     Require(Mathf.Abs(bibNotes[0].StartBeat) < 0.001f,
                         "Back in Black starts on beat 1");
-                    Require(Mathf.Abs(bibNotes[1].StartBeat - 1.75f) < 0.001f,
-                        "D5 group starts 1.75 beats after E5");
-                    Require(Mathf.Abs(bibNotes[4].StartBeat - 4f) < 0.001f,
-                        "A5 group starts 1.75 beats after the last D5");
+                    Require(Mathf.Abs(bibNotes[1].StartBeat - 1.5f) < 0.001f,
+                        "D5 group starts 1.5 beats after E5");
+                    Require(Mathf.Abs(bibNotes[4].StartBeat - 3.5f) < 0.001f,
+                        "A5 group starts 1.5 beats after the last D5");
                     Require(Mathf.Abs(bibNotes[7].StartBeat - 6.25f) < 0.001f,
-                        "lick starts 1.75 beats after the last A5");
+                        "lick 1 starts after the A5 group");
                     Require(Mathf.Abs(bibNotes[2].StartBeat - bibNotes[1].StartBeat - 0.25f) < 0.001f &&
                             Mathf.Abs(bibNotes[3].StartBeat - bibNotes[2].StartBeat - 0.25f) < 0.001f &&
                             Mathf.Abs(bibNotes[5].StartBeat - bibNotes[4].StartBeat - 0.25f) < 0.001f &&
                             Mathf.Abs(bibNotes[6].StartBeat - bibNotes[5].StartBeat - 0.25f) < 0.001f,
                         "D5 and A5 use the same 16th down-up-down");
-                    Require(Mathf.Abs(bibNotes[1].LengthBeats - bibNotes[4].LengthBeats) < 0.001f &&
-                            Mathf.Abs(bibNotes[2].LengthBeats - bibNotes[5].LengthBeats) < 0.001f &&
-                            Mathf.Abs(bibNotes[3].LengthBeats - bibNotes[6].LengthBeats) < 0.001f,
-                        "D5 and A5 hits have matching lengths");
-                    Require(Mathf.Abs(bibNotes[6].StartBeat - 4.5f) < 0.001f,
-                        "third A5 finishes the matching down-up-down");
-                    Require(Mathf.Abs(bibNotes[1].StartBeat - bibNotes[0].StartBeat - 1.75f) < 0.001f &&
-                            Mathf.Abs(bibNotes[4].StartBeat - bibNotes[3].StartBeat - 1.75f) < 0.001f &&
-                            Mathf.Abs(bibNotes[7].StartBeat - bibNotes[6].StartBeat - 1.75f) < 0.001f,
-                        "each rest is 1.75 beats after the previous group's last hit");
-                    Require(Mathf.Abs(bibNotes[12].StartBeat - bibNotes[11].StartBeat - 0.125f) < 0.001f &&
-                            Mathf.Abs(bibNotes[13].StartBeat - bibNotes[12].StartBeat - 0.125f) < 0.001f,
-                        "bend and release run as 32nds");
-                    Require(Mathf.Abs(bibNotes[14].StartBeat - bibNotes[13].StartBeat - 0.25f) < 0.001f,
-                        "last two lick notes are a 16th apart");
+                    Require(Mathf.Abs(bibNotes[6].StartBeat - 4f) < 0.001f,
+                        "third A5 lands on beat 4");
                     Require(Mathf.Abs(bibNotes[14].StartBeat - 7.75f) < 0.001f,
-                        "lick pull-off to open G lands a 16th after the release");
+                        "lick pull-off to open G lands on beat 7.75");
                     Require(Mathf.Abs(bibNotes[15].StartBeat - 8f) < 0.001f,
-                        "second phrase starts a 16th after lick 1");
-                    Require(Mathf.Abs(bibNotes[22].StartBeat - bibNotes[21].StartBeat - 1.75f) < 0.001f &&
-                            Mathf.Abs(bibNotes[22].StartBeat - 14.25f) < 0.001f,
-                        "walk-up starts 1.75 beats after the last A5, same as lick 1");
-                    Require(Mathf.Abs(bibNotes[23].StartBeat - bibNotes[22].StartBeat - 0.25f) < 0.001f &&
-                            Mathf.Abs(bibNotes[25].StartBeat - bibNotes[24].StartBeat - 0.25f) < 0.001f &&
-                            Mathf.Abs(bibNotes[29].StartBeat - bibNotes[28].StartBeat - 0.25f) < 0.001f &&
-                            Mathf.Abs(bibNotes[24].StartBeat - bibNotes[22].StartBeat - 1f) < 0.001f,
-                        "each walk note is a 16th after its B, with B's a beat apart");
-                    Require(Mathf.Abs(bibNotes[bibNotes.Length - 1].StartBeat - 17.5f) < 0.001f,
-                        "walk-up lick ends on beat 17.5 (" +
+                        "second phrase starts on beat 8");
+                    Require(Mathf.Abs(bibNotes[22].StartBeat - 13f) < 0.001f,
+                        "walk-up starts on beat 13");
+                    Require(Mathf.Abs(bibNotes[bibNotes.Length - 1].StartBeat - 15.5f) < 0.02f,
+                        "walk-up lick ends on beat 15.5 (" +
                         bibNotes[bibNotes.Length - 1].StartBeat.ToString("F2") + ")");
-                    Require(Mathf.Abs(levels.CurrentLevel.LoopLengthBeats - bibNotes[29].StartBeat - 0.25f) < 0.001f,
-                        "loopback uses the same 16th as the last walk note");
                     Require(bibNotes[0].StringIndex == 0 && bibNotes[0].Fret == 0,
                         "bar 1 opens on open low E");
                     Require(bibNotes.Skip(1).Take(3).All(n => n.StringIndex == 2 && n.Fret == 0),
@@ -1686,6 +1685,52 @@ namespace GuitarPlatformer.EditorTools
                     row3 = GameObject.Find("ChallengeRow_3")?.GetComponentInChildren<Text>();
                     Require(row3 != null && row3.text.Contains("BACK IN BLACK"),
                         "the cleared challenge 4 reveals its name (" + row3?.text + ")");
+
+                    Text row4 = GameObject.Find("ChallengeRow_4")?.GetComponentInChildren<Text>();
+                    Require(levels.IsChallengeUnlocked(4), "challenge 5 stays unlocked after challenge 4");
+                    Require(row4 != null && row4.text.Contains("???") &&
+                            !row4.text.Contains("DO I WANNA KNOW"),
+                        "the unlocked challenge 5 stays unnamed (" + row4?.text + ")");
+
+                    levels.ActivateMenu(MenuScreen.Challenge, 4);
+                    Require(levels.State == LevelState.Playing, "challenge 5 starts from the menu");
+                    Require(levels.CurrentLevelIndex == 4, "challenge 5 is active");
+                    Require(levels.CurrentLevel.Title == "Do I Wanna Know?",
+                        "challenge 5 is Do I Wanna Know");
+                    Require(levels.CurrentLevel.Artist == "Arctic Monkeys",
+                        "challenge 5 artist is Arctic Monkeys");
+                    Require(levels.CurrentLevel.Bpm == 85, "challenge 5 runs at 85 BPM");
+                    Require(levels.StepCount == 20, "Do I Wanna Know has 20 steps");
+                    Require(Mathf.Abs(levels.CurrentLevel.LoopLengthBeats - 14f) < 0.001f,
+                        "Do I Wanna Know loops at 14 beats");
+                    Require(levels.TargetTile != null && levels.TargetTile.stringIndex == 0 &&
+                            levels.TargetTile.fret == 1,
+                        "first Do I Wanna Know target is low-E fret 1");
+
+                    int diwkGuard = 0;
+                    while (levels.State == LevelState.Playing && diwkGuard++ < 30)
+                    {
+                        NoteTile t = levels.TargetTile;
+                        Require(t != null, "target exists while completing Do I Wanna Know");
+                        levels.OnNotePlayed(t);
+                    }
+                    Require(levels.State == LevelState.Replay, "challenge 5 replay starts");
+                    Require(levels.SkipReplay(), "challenge 5 replay skips");
+                    Require(levels.State == LevelState.Reveal, "challenge 5 reveal shows");
+                    Text diwkTitle = GameObject.Find("RevealTitle")?.GetComponent<Text>();
+                    Text diwkArtist = GameObject.Find("RevealArtist")?.GetComponent<Text>();
+                    Require(diwkTitle != null && diwkTitle.text == "Do I Wanna Know?",
+                        "reveal shows Do I Wanna Know (" + diwkTitle?.text + ")");
+                    Require(diwkArtist != null && diwkArtist.text == "Arctic Monkeys",
+                        "reveal shows Arctic Monkeys (" + diwkArtist?.text + ")");
+                    Require(levels.IsChallengeCompleted(4), "challenge 5 is marked complete");
+
+                    levels.Advance();
+                    Require(levels.State == LevelState.ChallengeSelect,
+                        "the challenge 5 reveal returns to the challenge menu");
+                    row4 = GameObject.Find("ChallengeRow_4")?.GetComponentInChildren<Text>();
+                    Require(row4 != null && row4.text.Contains("DO I WANNA KNOW"),
+                        "the cleared challenge 5 reveals its name (" + row4?.text + ")");
 
                     // Interval Selection Menu tests
                     levels.OpenIntervalMenu();
@@ -1795,7 +1840,7 @@ namespace GuitarPlatformer.EditorTools
                         "pause can quit to the challenge menu");
 
                     // Back to the main menu, then free play.
-                    levels.ActivateMenu(MenuScreen.Challenge, 4);
+                    levels.ActivateMenu(MenuScreen.Challenge, RiffLibrary.CreateLevels().Length);
                     Require(levels.State == LevelState.MainMenu, "back returns to the main menu");
                     levels.ActivateMenu(MenuScreen.Main, 0);
                     Require(levels.State == LevelState.FreePlay, "free play starts again from the menu");

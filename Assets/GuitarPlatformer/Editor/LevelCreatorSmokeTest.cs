@@ -47,10 +47,21 @@ namespace GuitarPlatformer.EditorTools
                 bool merged = all.Any(level => level.Title == data.title);
                 bool invalidRejected = !RiffLevelData.TryValidate(new RiffLevelData(), out _);
 
-                if (!loaded || !merged || !invalidRejected)
+                CustomLevelSession.Queue(source);
+                bool queued = CustomLevelSession.HasPending;
+                RiffLevel consumed = CustomLevelSession.Consume();
+                bool sessionOk = queued && consumed != null && consumed.Title == source.Title &&
+                                 !CustomLevelSession.HasPending;
+
+                RiffStepData clone = data.steps[0].Clone();
+                clone.fret = Mathf.Clamp(clone.fret + 1, 0, GuitarTuning.FretCount);
+                bool cloneIndependent = clone.fret != data.steps[0].fret;
+
+                if (!loaded || !merged || !invalidRejected || !sessionOk || !cloneIndependent)
                 {
                     Debug.LogError("LEVEL CREATOR SMOKE FAIL: loaded=" + loaded + " merged=" + merged +
-                                   " invalidRejected=" + invalidRejected + " custom=" + custom.Length +
+                                   " invalidRejected=" + invalidRejected + " session=" + sessionOk +
+                                   " clone=" + cloneIndependent + " custom=" + custom.Length +
                                    " all=" + all.Length);
                     return;
                 }

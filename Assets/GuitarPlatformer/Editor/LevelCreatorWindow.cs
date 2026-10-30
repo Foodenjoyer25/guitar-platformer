@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace GuitarPlatformer.EditorTools
@@ -15,16 +16,29 @@ namespace GuitarPlatformer.EditorTools
     {
         private const string LevelsFolder = "Assets/GuitarPlatformer/Resources/Levels";
         private const string PreviewFolder = "/tmp/opencode/level-preview";
+        private const string PendingLevelKey = "GuitarPlatformer.PendingLevelJson";
+        private const string GameScene = "Assets/GuitarPlatformer/Scenes/GuitarFretboard.unity";
         private const int TimelineBeats = 16;
         private const float BeatWidth = 30f;
         private const float RowHeight = 28f;
         private const float HeaderHeight = 24f;
         private const float LabelWidth = 54f;
         private const float Subdivision = 0.25f;
+        private const float ResizeEdge = 7f;
+        private const float FretCell = 22f;
+
+        private enum DragKind
+        {
+            None,
+            Move,
+            ResizeStart,
+            ResizeEnd
+        }
 
         private static readonly string[] StringLabels = BuildStringLabels();
         private static readonly string[] IntervalLabels = BuildIntervalLabels();
         private static readonly int[] IntervalSemitones = BuildIntervalSemitones();
+        private static readonly int[] MarkerFrets = { 3, 5, 7, 9, 12, 15, 17, 19, 21, 24 };
         private static readonly string[] ChordModeLabels =
         {
             "Inherit level chords",
@@ -37,21 +51,26 @@ namespace GuitarPlatformer.EditorTools
         private string snapshot;
         private int selectedStep = -1;
         private int timelineStartBeat;
+        private int placeFret;
 
         private Vector2 levelListScroll;
         private Vector2 stepListScroll;
         private Vector2 inspectorScroll;
+        private Vector2 fretboardScroll;
 
         private string status = "";
         private MessageType statusType = MessageType.Info;
 
         private bool showRequired = true;
         private bool showTimeline = true;
+        private bool showFretboard = true;
         private bool showSteps = true;
+        private bool auditionOnSelect = true;
 
-        private bool dragging;
+        private DragKind dragKind;
         private int dragStep = -1;
         private float dragStartBeat;
+        private float dragLength;
         private float dragMouseBeat;
 
         private readonly List<string> levelPaths = new List<string>();
@@ -60,7 +79,7 @@ namespace GuitarPlatformer.EditorTools
         public static void Open()
         {
             var window = GetWindow<LevelCreatorWindow>("Level Creator");
-            window.minSize = new Vector2(1120f, 680f);
+            window.minSize = new Vector2(1120f, 720f);
             window.Show();
         }
 
@@ -74,9 +93,15 @@ namespace GuitarPlatformer.EditorTools
                 NewLevel(false);
         }
 
+        private void OnDisable()
+        {
+            EditorAudioPreview.Stop();
+        }
+
         private void OnGUI()
         {
             if (level == null) NewLevel(false);
+            HandleShortcuts();
 
             DrawToolbar();
             EditorGUILayout.Space(4f);
@@ -90,6 +115,64 @@ namespace GuitarPlatformer.EditorTools
             EditorGUILayout.EndHorizontal();
 
             DrawStatusBar();
+        }
+
+        private void HandleShortcuts()
+        {
+            Event current = Event.current;
+            if (current == null || current.type != EventType.KeyDown) return;
+            if (EditorGUIUtility.editingTextField) return;
+
+            bool control = current.control || current.command;
+            if (control && current.keyCode == KeyCode.S)
+            {
+                Save();
+                current.Use();
+                return;
+            }
+
+            if (current.keyCode == KeyCode.Delete || current.keyCode == KeyCode.Backspace)
+            {
+                DeleteStep(selectedStep);
+                current.Use();
+                return;
+            }
+
+            if (current.keyCode == KeyCode.D)
+            {
+                DuplicateStep(selectedStep);
+                current.Use();
+                return;
+            }
+
+            if (current.keyCode == KeyCode.Space)
+            {
+                if (control) PlayRiff();
+                else AuditionSelected();
+                current.Use();
+                return;
+            }
+
+            if (current.keyCode == KeyCode.LeftArrow)
+            {
+                NudgeStart(selectedStep, current.shift ? -1f : -Subdivision);
+                current.Use();
+            }
+            else if (current.keyCode == KeyCode.RightArrow)
+            {
+                NudgeStart(selectedStep, current.shift ? 1f : Subdivision);
+                current.Use();
+            }
+            else if (current.keyCode == KeyCode.UpArrow)
+            {
+                NudgeString(selectedStep, -1);
+                current.Use();
+            }
+            else if (current.keyCode == KeyCode.DownArrow)
+            {
+                NudgeString(selectedStep, 1);
+                current.Use();
+            }
         }
 
         private void DrawToolbar()
@@ -113,7 +196,15 @@ namespace GuitarPlatformer.EditorTools
                 ShowImportMenu();
 
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Render Preview WAV", EditorStyles.toolbarButton, GUILayout.Width(132f)))
+            auditionOnSelect = GUILayout.Toggle(auditionOnSelect, "Hear clicks", EditorStyles.toolbarButton,
+                GUILayout.Width(88f));
+            if (GUILayout.Button("Play Step", EditorStyles.toolbarButton, GUILayout.Width(78f)))
+                AuditionSelected();
+            if (GUILayout.Button("Play Riff", EditorStyles.toolbarButton, GUILayout.Width(78f)))
+                PlayRiff();
+            if (GUILayout.Button("Play in Game", EditorStyles.toolbarButton, GUILayout.Width(96f)))
+                PlayInGame();
+            if (GUILayout.Button("WAV", EditorStyles.toolbarButton, GUILayout.Width(44f)))
                 RenderPreview();
             EditorGUILayout.EndHorizontal();
         }
@@ -172,6 +263,11 @@ namespace GuitarPlatformer.EditorTools
             if (showTimeline) DrawTimeline();
 
             EditorGUILayout.Space(6f);
+            showFretboard = EditorGUILayout.Foldout(showFretboard, "FRETBOARD  ·  click a pad to set string and fret",
+                true);
+            if (showFretboard) DrawFretboard();
+
+            EditorGUILayout.Space(6f);
             showSteps = EditorGUILayout.Foldout(showSteps, "STEPS", true);
             if (showSteps) DrawStepList();
 
@@ -192,7 +288,7 @@ namespace GuitarPlatformer.EditorTools
             int firstBar = timelineStartBeat / 4 + 1;
             int lastBar = (timelineStartBeat + TimelineBeats - 1) / 4 + 1;
             EditorGUILayout.LabelField("Bars " + firstBar + "–" + lastBar +
-                                       "  ·  click empty grid to add  ·  drag a step to move  ·  right-click to delete",
+                                       "  ·  click empty to add  ·  drag to move  ·  drag edges to resize  ·  right-click to delete",
                 EditorStyles.miniLabel);
 
             if (GUILayout.Button("▶", GUILayout.Width(28f)))
@@ -260,15 +356,8 @@ namespace GuitarPlatformer.EditorTools
             {
                 RiffStepData step = level.steps[i];
                 if (step == null) continue;
-                float start = Mathf.Max(step.startBeat, timelineStartBeat);
-                float end = Mathf.Min(step.startBeat + step.lengthBeats, timelineStartBeat + TimelineBeats);
-                if (end <= start) continue;
-
-                float x = content.x + LabelWidth + (start - timelineStartBeat) * BeatWidth;
-                int row = Mathf.Clamp(step.stringIndex, 0, GuitarTuning.StringCount - 1);
-                float y = content.y + HeaderHeight + row * RowHeight + 1f;
-                float w = Mathf.Max(5f, (end - start) * BeatWidth);
-                Rect rect = new Rect(x, y, w, RowHeight - 3f);
+                Rect rect = StepRect(content, step);
+                if (rect.width <= 0f) continue;
 
                 Color fill = StepColor(step);
                 EditorGUI.DrawRect(rect, fill);
@@ -276,12 +365,27 @@ namespace GuitarPlatformer.EditorTools
                 {
                     EditorGUI.DrawRect(new Rect(rect.x, rect.y, rect.width, 2f), Color.white);
                     EditorGUI.DrawRect(new Rect(rect.x, rect.yMax - 2f, rect.width, 2f), Color.white);
+                    EditorGUI.DrawRect(new Rect(rect.x, rect.y, 2f, rect.height), Color.white);
+                    EditorGUI.DrawRect(new Rect(rect.xMax - 2f, rect.y, 2f, rect.height), Color.white);
                 }
 
-                if (w > 30f)
+                if (rect.width > 30f)
                     GUI.Label(new Rect(rect.x + 3f, rect.y, rect.width - 4f, rect.height),
                         NoteName(step), EditorStyles.miniLabel);
             }
+        }
+
+        private Rect StepRect(Rect content, RiffStepData step)
+        {
+            float start = Mathf.Max(step.startBeat, timelineStartBeat);
+            float end = Mathf.Min(step.startBeat + step.lengthBeats, timelineStartBeat + TimelineBeats);
+            if (end <= start) return new Rect(0f, 0f, 0f, 0f);
+
+            float x = content.x + LabelWidth + (start - timelineStartBeat) * BeatWidth;
+            int row = Mathf.Clamp(step.stringIndex, 0, GuitarTuning.StringCount - 1);
+            float y = content.y + HeaderHeight + row * RowHeight + 1f;
+            float w = Mathf.Max(5f, (end - start) * BeatWidth);
+            return new Rect(x, y, w, RowHeight - 3f);
         }
 
         private void HandleTimelineInput(Rect content)
@@ -309,9 +413,14 @@ namespace GuitarPlatformer.EditorTools
                     if (hit >= 0)
                     {
                         SelectStep(hit);
-                        dragging = true;
+                        RiffStepData step = level.steps[hit];
+                        Rect rect = StepRect(content, step);
+                        dragKind = DragKind.Move;
+                        if (current.mousePosition.x >= rect.xMax - ResizeEdge) dragKind = DragKind.ResizeEnd;
+                        else if (current.mousePosition.x <= rect.xMin + ResizeEdge) dragKind = DragKind.ResizeStart;
                         dragStep = hit;
-                        dragStartBeat = level.steps[hit].startBeat;
+                        dragStartBeat = step.startBeat;
+                        dragLength = step.lengthBeats;
                         dragMouseBeat = beat;
                     }
                     else
@@ -323,24 +432,118 @@ namespace GuitarPlatformer.EditorTools
                 return;
             }
 
-            if (current.type == EventType.MouseDrag && dragging && dragStep >= 0 &&
-                dragStep < level.steps.Length)
+            if (current.type == EventType.MouseDrag && dragKind != DragKind.None &&
+                dragStep >= 0 && dragStep < level.steps.Length)
             {
                 Vector2 local = current.mousePosition - content.position;
                 float beat = timelineStartBeat + (local.x - LabelWidth) / BeatWidth;
-                float delta = Quantize(beat - dragMouseBeat);
-                level.steps[dragStep].startBeat = Mathf.Max(0f, dragStartBeat + delta);
+                int stringIndex = Mathf.FloorToInt((local.y - HeaderHeight) / RowHeight);
+                RiffStepData step = level.steps[dragStep];
+
+                if (dragKind == DragKind.Move)
+                {
+                    float delta = Quantize(beat - dragMouseBeat);
+                    step.startBeat = Mathf.Max(0f, dragStartBeat + delta);
+                    if (stringIndex >= 0 && stringIndex < GuitarTuning.StringCount)
+                        step.stringIndex = stringIndex;
+                }
+                else if (dragKind == DragKind.ResizeEnd)
+                {
+                    step.lengthBeats = Mathf.Max(Subdivision, Quantize(beat - step.startBeat));
+                }
+                else if (dragKind == DragKind.ResizeStart)
+                {
+                    float end = dragStartBeat + dragLength;
+                    float start = Mathf.Max(0f, Quantize(beat));
+                    if (start > end - Subdivision) start = end - Subdivision;
+                    step.startBeat = Mathf.Max(0f, start);
+                    step.lengthBeats = Mathf.Max(Subdivision, end - step.startBeat);
+                }
+
                 Repaint();
                 current.Use();
                 return;
             }
 
-            if (current.type == EventType.MouseUp && dragging)
+            if (current.type == EventType.MouseUp && dragKind != DragKind.None)
             {
-                dragging = false;
+                dragKind = DragKind.None;
                 dragStep = -1;
                 Repaint();
             }
+        }
+
+        private void DrawFretboard()
+        {
+            float width = LabelWidth + (GuitarTuning.FretCount + 1) * FretCell;
+            float height = HeaderHeight + GuitarTuning.StringCount * FretCell;
+            fretboardScroll = EditorGUILayout.BeginScrollView(fretboardScroll, GUILayout.Height(height + 8f));
+            Rect content = GUILayoutUtility.GetRect(width, height, GUILayout.ExpandWidth(false));
+            EditorGUI.DrawRect(content, new Color(0.08f, 0.07f, 0.05f, 1f));
+
+            for (int fret = 0; fret <= GuitarTuning.FretCount; fret++)
+            {
+                float x = content.x + LabelWidth + fret * FretCell;
+                bool marker = Array.IndexOf(MarkerFrets, fret) >= 0;
+                GUI.Label(new Rect(x, content.y + 2f, FretCell, HeaderHeight - 2f),
+                    fret == 0 ? "0" : fret.ToString(), EditorStyles.centeredGreyMiniLabel);
+                if (marker)
+                    EditorGUI.DrawRect(new Rect(x + FretCell * 0.5f - 1f, content.y + HeaderHeight, 2f,
+                        content.height - HeaderHeight), new Color(1f, 1f, 1f, 0.18f));
+            }
+
+            RiffStepData selected = SelectedStepData();
+            int selectedString = selected != null ? selected.stringIndex : -1;
+            int selectedFret = selected != null ? selected.fret : placeFret;
+
+            for (int row = 0; row < GuitarTuning.StringCount; row++)
+            {
+                float y = content.y + HeaderHeight + row * FretCell;
+                GUI.Label(new Rect(content.x + 4f, y + 2f, LabelWidth - 6f, FretCell - 2f),
+                    StringLabels[row], EditorStyles.miniLabel);
+
+                for (int fret = 0; fret <= GuitarTuning.FretCount; fret++)
+                {
+                    Rect cell = new Rect(content.x + LabelWidth + fret * FretCell + 1f, y + 1f,
+                        FretCell - 2f, FretCell - 2f);
+                    Color color = GuitarTuning.ColorForMidi(GuitarTuning.MidiFor(row, fret));
+                    color.a = row == selectedString && fret == selectedFret ? 1f : 0.35f;
+                    EditorGUI.DrawRect(cell, color);
+                    if (row == selectedString && fret == selectedFret)
+                    {
+                        EditorGUI.DrawRect(new Rect(cell.x, cell.y, cell.width, 2f), Color.white);
+                        EditorGUI.DrawRect(new Rect(cell.x, cell.yMax - 2f, cell.width, 2f), Color.white);
+                    }
+
+                    if (Event.current.type == EventType.MouseDown && cell.Contains(Event.current.mousePosition) &&
+                        Event.current.button == 0)
+                    {
+                        placeFret = fret;
+                        if (selected != null)
+                        {
+                            selected.stringIndex = row;
+                            selected.fret = fret;
+                            if (auditionOnSelect) AuditionStep(selected);
+                        }
+                        else
+                        {
+                            AddStepAt(row, NextFreeBeat(row, timelineStartBeat));
+                            if (selectedStep >= 0)
+                            {
+                                level.steps[selectedStep].fret = fret;
+                                if (auditionOnSelect) AuditionStep(level.steps[selectedStep]);
+                            }
+                        }
+
+                        Event.current.Use();
+                        Repaint();
+                    }
+                }
+            }
+
+            EditorGUILayout.EndScrollView();
+            EditorGUILayout.LabelField("Brush fret " + placeFret + "  ·  new timeline notes use this fret",
+                EditorStyles.miniLabel);
         }
 
         private void DrawStepList()
@@ -412,6 +615,9 @@ namespace GuitarPlatformer.EditorTools
             }
 
             EditorGUILayout.Space(8f);
+            EditorGUILayout.HelpBox(
+                "Shortcuts: Space plays the step, Ctrl+Space the riff, Ctrl+S saves, D duplicates, Delete removes, arrows nudge.",
+                MessageType.None);
             DrawValidation();
             EditorGUILayout.EndScrollView();
             EditorGUILayout.EndVertical();
@@ -422,6 +628,7 @@ namespace GuitarPlatformer.EditorTools
             int newString = EditorGUILayout.Popup("String", Mathf.Clamp(step.stringIndex, 0, 5), StringLabels);
             if (newString != step.stringIndex) step.stringIndex = newString;
             step.fret = EditorGUILayout.IntSlider("Fret", step.fret, 0, GuitarTuning.FretCount);
+            placeFret = step.fret;
             step.startBeat = Mathf.Max(0f, EditorGUILayout.FloatField("Start beat", step.startBeat));
             step.lengthBeats = Mathf.Max(0.01f, EditorGUILayout.FloatField("Length (beats)", step.lengthBeats));
             step.muted = EditorGUILayout.Toggle("Palm mute", step.muted);
@@ -447,6 +654,7 @@ namespace GuitarPlatformer.EditorTools
 
             EditorGUILayout.LabelField("Note", NoteName(step));
             EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Hear")) AuditionStep(step);
             if (GUILayout.Button("Duplicate")) DuplicateStep(selectedStep);
             if (GUILayout.Button("Delete")) DeleteStep(selectedStep);
             EditorGUILayout.EndHorizontal();
@@ -511,8 +719,10 @@ namespace GuitarPlatformer.EditorTools
             currentPath = null;
             selectedStep = 0;
             timelineStartBeat = 0;
+            placeFret = 0;
             snapshot = JsonUtility.ToJson(level);
-            ShowStatus("New level created. Click the timeline to add steps.", MessageType.Info);
+            ShowStatus("New level created. Click the fretboard to pick a pad, then click the timeline.",
+                MessageType.Info);
         }
 
         private void DuplicateAsNew()
@@ -541,6 +751,7 @@ namespace GuitarPlatformer.EditorTools
                 currentPath = path;
                 selectedStep = level.steps.Length > 0 ? 0 : -1;
                 timelineStartBeat = 0;
+                placeFret = SelectedStepData() != null ? SelectedStepData().fret : 0;
                 snapshot = JsonUtility.ToJson(level);
                 ShowStatus("Loaded " + Path.GetFileName(path) + ".", MessageType.Info);
             }
@@ -664,8 +875,88 @@ namespace GuitarPlatformer.EditorTools
             currentPath = null;
             selectedStep = level.steps.Length > 0 ? 0 : -1;
             timelineStartBeat = 0;
+            placeFret = SelectedStepData() != null ? SelectedStepData().fret : 0;
             snapshot = JsonUtility.ToJson(level);
             ShowStatus("Imported '" + built.Title + "'. Save As to keep a copy.", MessageType.Info);
+        }
+
+        private void AuditionSelected()
+        {
+            RiffStepData step = SelectedStepData();
+            if (step == null)
+            {
+                ShowStatus("Select a step to hear it.", MessageType.Warning);
+                return;
+            }
+
+            AuditionStep(step);
+        }
+
+        private void AuditionStep(RiffStepData step)
+        {
+            if (step == null || level == null) return;
+            if (step.stringIndex < 0 || step.stringIndex >= GuitarTuning.StringCount ||
+                step.fret < 0 || step.fret > GuitarTuning.FretCount)
+                return;
+
+            int midi = GuitarTuning.MidiFor(step.stringIndex, step.fret);
+            int[] intervals = step.overrideChord
+                ? (step.chordFree ? new int[0] : step.chordIntervals)
+                : level.requiredIntervals;
+            float seconds = Mathf.Clamp(60f / Mathf.Max(1, level.bpm) * step.lengthBeats + 0.3f, 0.2f, 2.2f);
+            float[] samples = ChiptuneSynth.GenerateChord(midi, step.stringIndex, intervals, step.muted, seconds);
+            EditorAudioPreview.Play(samples, ChiptuneSynth.SampleRate);
+            ShowStatus("Playing " + NoteName(step) + ".", MessageType.Info);
+        }
+
+        private void PlayRiff()
+        {
+            if (level == null) return;
+            if (!RiffLevelData.TryValidate(level, out string message))
+            {
+                ShowStatus("Fix the level errors before playing:\n" + message, MessageType.Error);
+                return;
+            }
+
+            try
+            {
+                float[] samples = ChiptuneSynth.RenderPerformance(level.ToLevel());
+                EditorAudioPreview.Play(samples, ChiptuneSynth.SampleRate);
+                ShowStatus("Playing the riff.", MessageType.Info);
+            }
+            catch (Exception exception)
+            {
+                ShowStatus("Could not play the riff: " + exception.Message, MessageType.Error);
+            }
+        }
+
+        private void PlayInGame()
+        {
+            if (level == null) return;
+            if (!RiffLevelData.TryValidate(level, out string message))
+            {
+                ShowStatus("Fix the level errors before playing in game:\n" + message, MessageType.Error);
+                return;
+            }
+
+            RiffLevel riff = level.ToLevel();
+            if (EditorApplication.isPlaying)
+            {
+                CustomLevelSession.Queue(riff);
+                LevelManager manager = UnityEngine.Object.FindAnyObjectByType<LevelManager>();
+                if (manager != null) manager.StartCustomLevel(CustomLevelSession.Consume());
+                ShowStatus("Started '" + riff.Title + "' in the running game.", MessageType.Info);
+                return;
+            }
+
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            if (EditorSceneManager.GetActiveScene().path != GameScene)
+                EditorSceneManager.OpenScene(GameScene);
+
+            SessionState.SetString(PendingLevelKey, JsonUtility.ToJson(level));
+            CustomLevelSession.Queue(riff);
+            EditorApplication.isPlaying = true;
+            ShowStatus("Entering Play Mode with '" + riff.Title + "'.", MessageType.Info);
         }
 
         private void RenderPreview()
@@ -717,6 +1008,13 @@ namespace GuitarPlatformer.EditorTools
             AssetDatabase.Refresh();
         }
 
+        private RiffStepData SelectedStepData()
+        {
+            if (level == null || level.steps == null || selectedStep < 0 || selectedStep >= level.steps.Length)
+                return null;
+            return level.steps[selectedStep];
+        }
+
         private void SelectStep(int index)
         {
             if (level == null || level.steps == null || level.steps.Length == 0)
@@ -726,7 +1024,12 @@ namespace GuitarPlatformer.EditorTools
             }
 
             selectedStep = Mathf.Clamp(index, 0, level.steps.Length - 1);
+            RiffStepData step = level.steps[selectedStep];
+            if (step != null) placeFret = step.fret;
             FocusStep(selectedStep);
+            if (auditionOnSelect && step != null && Event.current != null &&
+                Event.current.type != EventType.MouseDrag)
+                AuditionStep(step);
             Repaint();
         }
 
@@ -745,7 +1048,7 @@ namespace GuitarPlatformer.EditorTools
             var step = new RiffStepData
             {
                 stringIndex = Mathf.Clamp(stringIndex, 0, GuitarTuning.StringCount - 1),
-                fret = 0,
+                fret = Mathf.Clamp(placeFret, 0, GuitarTuning.FretCount),
                 startBeat = Mathf.Max(0f, Quantize(beat)),
                 lengthBeats = 0.25f
             };
@@ -753,6 +1056,7 @@ namespace GuitarPlatformer.EditorTools
             level.steps = steps.ToArray();
             selectedStep = level.steps.Length - 1;
             FocusStep(selectedStep);
+            if (auditionOnSelect) AuditionStep(step);
             Repaint();
         }
 
@@ -784,6 +1088,14 @@ namespace GuitarPlatformer.EditorTools
             if (level == null || level.steps == null || index < 0 || index >= level.steps.Length) return;
             level.steps[index].startBeat = Mathf.Max(0f, level.steps[index].startBeat + delta);
             FocusStep(index);
+            Repaint();
+        }
+
+        private void NudgeString(int index, int delta)
+        {
+            if (level == null || level.steps == null || index < 0 || index >= level.steps.Length) return;
+            level.steps[index].stringIndex = Mathf.Clamp(level.steps[index].stringIndex + delta, 0,
+                GuitarTuning.StringCount - 1);
             Repaint();
         }
 

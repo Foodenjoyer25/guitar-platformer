@@ -163,16 +163,26 @@ namespace GuitarPlatformer
 
         public void SetTarget(string text)
         {
-            if (targetText != null) targetText.text = text;
+            SetTarget(text, Color.white);
+        }
+
+        public void SetTarget(string text, Color color)
+        {
+            if (targetText == null) return;
+            targetText.text = text ?? "";
+            targetText.color = color;
         }
 
         public void SetChordRequirement(string text, bool ready)
         {
             if (chordRequirementText == null) return;
-            if (string.IsNullOrEmpty(text))
+            CompactChordLabel();
+
+            bool hide = string.IsNullOrEmpty(text) || text == "NONE" || text == "FREE";
+            chordRequirementText.gameObject.SetActive(!hide);
+            if (hide)
             {
-                chordRequirementText.text = "CHORD  ·  FREE";
-                chordRequirementText.color = new Color(0.63f, 0.72f, 0.9f, 0.82f);
+                chordRequirementText.text = "";
                 return;
             }
 
@@ -180,6 +190,19 @@ namespace GuitarPlatformer
             chordRequirementText.color = ready
                 ? new Color(0.3f, 0.95f, 1f, 1f)
                 : new Color(1f, 0.45f, 0.8f, 1f);
+        }
+
+        private void CompactChordLabel()
+        {
+            if (chordRequirementText == null) return;
+            chordRequirementText.fontSize = 18;
+            chordRequirementText.alignment = TextAnchor.LowerCenter;
+            RectTransform rect = chordRequirementText.rectTransform;
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(0f, 48f);
+            rect.sizeDelta = new Vector2(900f, 22f);
         }
 
         public void SetNoteMode(string mode)

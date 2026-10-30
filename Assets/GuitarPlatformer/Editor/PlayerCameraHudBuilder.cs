@@ -190,34 +190,6 @@ namespace GuitarPlatformer.EditorTools
             Color cyan = new Color(0.3f, 0.95f, 1f);
             Color dim = new Color(0.63f, 0.72f, 0.9f, 0.82f);
 
-            BuilderUtil.CreateText(canvasGo.transform, "Title", "FRET HOPPER", 46,
-                TextAnchor.UpperLeft, new Vector2(0f, 1f), new Vector2(48f, -34f), new Vector2(720f, 60f),
-                cyan, a.Font, FontStyle.Bold);
-
-            BuilderUtil.CreateText(canvasGo.transform, "Subtitle", "a playable neon fretboard", 20,
-                TextAnchor.UpperLeft, new Vector2(0f, 1f), new Vector2(50f, -84f), new Vector2(720f, 30f),
-                dim, a.Font);
-
-            Text controls = BuilderUtil.CreateText(canvasGo.transform, "Controls",
-                "WASD / left stick   move\n" +
-                "Space / A   jump + double + triple\n" +
-                "Shift / L3   sprint      Ctrl / RT   boost\n" +
-                "V / Y   camera view      Backspace / Select   respawn\n" +
-                "L   free play: walk-on / landing only\n" +
-                "M   palm mute      N   mute all strings\n" +
-                "TAB / PAD WEST / I   interval selection menu\n" +
-                "Esc / Start   menu      Enter / A   confirm\n" +
-                "\n" +
-                "CHORDS  F P5   J P5\u2193   E m3   R M3\n" +
-                "        T P4   Y M2   C m6   G M6\n" +
-                "        H m7   Z m2   X TT   B M7   Q 8va\n" +
-                "        1 m9   2 M9   3 m10  4 M10  5 P11\n" +
-                "        6 A11  7 P12  8 m13  9 M13  0 m14\n" +
-                "        - M14  = P15", 17,
-                TextAnchor.UpperLeft, new Vector2(0f, 1f), new Vector2(50f, -126f), new Vector2(680f, 370f),
-                new Color(0.78f, 0.84f, 1f, 0.88f), a.Font);
-            controls.lineSpacing = 1.12f;
-
             Text view = BuilderUtil.CreateText(canvasGo.transform, "ViewLabel", "VIEW  ·  GUITARIST", 18,
                 TextAnchor.UpperRight, new Vector2(1f, 1f), new Vector2(-48f, -146f), new Vector2(320f, 28f),
                 cyan, a.Font, FontStyle.Bold);
@@ -236,32 +208,34 @@ namespace GuitarPlatformer.EditorTools
             levelRect.anchorMin = new Vector2(0.5f, 1f);
             levelRect.anchorMax = new Vector2(0.5f, 1f);
             levelRect.pivot = new Vector2(0.5f, 1f);
-            levelRect.anchoredPosition = new Vector2(0f, -24f);
-            levelRect.sizeDelta = new Vector2(760f, 158f);
+            levelRect.anchoredPosition = new Vector2(0f, -18f);
+            levelRect.sizeDelta = new Vector2(980f, 280f);
             var levelImage = levelPanel.AddComponent<Image>();
-            levelImage.color = new Color(0.015f, 0.01f, 0.04f, 0.72f);
+            levelImage.color = new Color(0.015f, 0.01f, 0.04f, 0.82f);
             levelImage.raycastTarget = false;
             var levelGroup = levelPanel.AddComponent<CanvasGroup>();
             levelGroup.alpha = 1f;
 
             Text levelHeader = BuilderUtil.CreateText(levelPanel.transform, "LevelHeader",
-                "FREE PLAY  ·  ENTER STARTS THE RIFF CAMPAIGN", 20,
-                TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -9f), new Vector2(730f, 28f),
+                "FREE PLAY", 22,
+                TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(940f, 30f),
                 cyan, a.Font, FontStyle.Bold);
-            Text levelStep = BuilderUtil.CreateText(levelPanel.transform, "LevelStep", "", 30,
-                TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -38f), new Vector2(730f, 34f),
+            Text levelTarget = BuilderUtil.CreateText(levelPanel.transform, "LevelTarget", "PLAY ANY PAD", 78,
+                TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -38f), new Vector2(940f, 120f),
                 Color.white, a.Font, FontStyle.Bold);
-            Text levelTarget = BuilderUtil.CreateText(levelPanel.transform, "LevelTarget", "", 19,
-                TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -72f), new Vector2(730f, 26f),
-                dim, a.Font);
-            Text levelChord = BuilderUtil.CreateText(levelPanel.transform, "LevelChord", "", 16,
-                TextAnchor.UpperLeft, new Vector2(0f, 1f), new Vector2(24f, -102f), new Vector2(430f, 24f),
+            levelTarget.lineSpacing = 0.86f;
+            Text levelChord = BuilderUtil.CreateText(levelPanel.transform, "LevelChord", "", 18,
+                TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 48f), new Vector2(900f, 22f),
                 dim, a.Font, FontStyle.Bold);
-            Text levelMode = BuilderUtil.CreateText(levelPanel.transform, "LevelMode", "", 16,
-                TextAnchor.UpperRight, new Vector2(1f, 1f), new Vector2(-24f, -102f), new Vector2(300f, 24f),
+            levelChord.gameObject.SetActive(false);
+            Text levelStep = BuilderUtil.CreateText(levelPanel.transform, "LevelStep", "", 22,
+                TextAnchor.LowerLeft, new Vector2(0f, 0f), new Vector2(28f, 14f), new Vector2(360f, 28f),
+                Color.white, a.Font, FontStyle.Bold);
+            Text levelMode = BuilderUtil.CreateText(levelPanel.transform, "LevelMode", "", 18,
+                TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 14f), new Vector2(280f, 28f),
                 dim, a.Font, FontStyle.Bold);
-            Text levelStatus = BuilderUtil.CreateText(levelPanel.transform, "LevelStatus", "", 17,
-                TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -128f), new Vector2(730f, 24f),
+            Text levelStatus = BuilderUtil.CreateText(levelPanel.transform, "LevelStatus", "", 18,
+                TextAnchor.LowerRight, new Vector2(1f, 0f), new Vector2(-28f, 14f), new Vector2(360f, 28f),
                 new Color(1f, 0.7f, 0.3f, 1f), a.Font, FontStyle.Bold);
 
             BuilderUtil.CreateText(canvasGo.transform, "CountLabel", "NOTES PLAYED", 16,
@@ -367,6 +341,16 @@ namespace GuitarPlatformer.EditorTools
                 dim, a.Font, FontStyle.Bold);
 
             MenuView menu = BuildMenu(canvasGo.transform, a);
+            Text controls = null;
+            Text[] builtTexts = canvasGo.GetComponentsInChildren<Text>(true);
+            for (int i = 0; i < builtTexts.Length; i++)
+            {
+                if (builtTexts[i] != null && builtTexts[i].name == "Controls")
+                {
+                    controls = builtTexts[i];
+                    break;
+                }
+            }
 
             hud.Configure(note, detail, count, controls, view, chord, boostLabel, mute, recent, fade,
                 noteGroup);
@@ -464,7 +448,9 @@ namespace GuitarPlatformer.EditorTools
                 CreateMenuRow(challengeContentGo.transform, "ChallengeRow_2", "CHALLENGE 03  ·  ???",
                     new Vector2(0f, -136f), new Vector2(760f, 60f), MenuScreen.Challenge, 2, font, 23),
                 CreateMenuRow(challengeContentGo.transform, "ChallengeRow_3", "CHALLENGE 04  ·  ???",
-                    new Vector2(0f, -204f), new Vector2(760f, 60f), MenuScreen.Challenge, 3, font, 23)
+                    new Vector2(0f, -204f), new Vector2(760f, 60f), MenuScreen.Challenge, 3, font, 23),
+                CreateMenuRow(challengeContentGo.transform, "ChallengeRow_4", "CHALLENGE 05  ·  ???",
+                    new Vector2(0f, -272f), new Vector2(760f, 60f), MenuScreen.Challenge, 4, font, 23)
             };
 
             BuilderUtil.CreateText(challengeCard, "DifficultyTitle", "DIFFICULTY  ·  ← / → OR CLICK", 20,
@@ -495,25 +481,44 @@ namespace GuitarPlatformer.EditorTools
                 TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 30f), new Vector2(980f, 26f),
                 dim, font);
 
-            // Pause.
-            Transform pauseCard = CreateMenuCard(pauseRoot, new Vector2(660f, 500f),
+            // Pause. Controls live here so the play HUD stays focused on the next note.
+            Transform pauseCard = CreateMenuCard(pauseRoot, new Vector2(1080f, 820f),
                 new Color(0.018f, 0.012f, 0.05f, 0.97f));
-            BuilderUtil.CreateText(pauseCard, "PauseTitle", "PAUSED", 56, TextAnchor.UpperCenter,
-                new Vector2(0.5f, 1f), new Vector2(0f, -46f), new Vector2(600f, 70f), cyan, font,
+            BuilderUtil.CreateText(pauseCard, "PauseTitle", "PAUSED", 52, TextAnchor.UpperCenter,
+                new Vector2(0.5f, 1f), new Vector2(0f, -28f), new Vector2(1000f, 60f), cyan, font,
                 FontStyle.Bold);
             MenuView.MenuRow[] pauseRows =
             {
-                CreateMenuRow(pauseCard, "PauseRow_0", "RESUME", new Vector2(0f, 80f),
-                    new Vector2(420f, 64f), MenuScreen.Pause, 0, font, 24),
-                CreateMenuRow(pauseCard, "PauseRow_1", "RESTART CHALLENGE", new Vector2(0f, 0f),
-                    new Vector2(420f, 64f), MenuScreen.Pause, 1, font, 24),
-                CreateMenuRow(pauseCard, "PauseRow_2", "CHALLENGE MENU", new Vector2(0f, -80f),
-                    new Vector2(420f, 64f), MenuScreen.Pause, 2, font, 24),
-                CreateMenuRow(pauseCard, "PauseRow_3", "INTERVAL SELECTION", new Vector2(0f, -160f),
-                    new Vector2(420f, 64f), MenuScreen.Pause, 3, font, 24)
+                CreateMenuRow(pauseCard, "PauseRow_0", "RESUME", new Vector2(-250f, 250f),
+                    new Vector2(420f, 58f), MenuScreen.Pause, 0, font, 22),
+                CreateMenuRow(pauseCard, "PauseRow_1", "RESTART CHALLENGE", new Vector2(-250f, 178f),
+                    new Vector2(420f, 58f), MenuScreen.Pause, 1, font, 22),
+                CreateMenuRow(pauseCard, "PauseRow_2", "CHALLENGE MENU", new Vector2(-250f, 106f),
+                    new Vector2(420f, 58f), MenuScreen.Pause, 2, font, 22),
+                CreateMenuRow(pauseCard, "PauseRow_3", "INTERVAL SELECTION", new Vector2(-250f, 34f),
+                    new Vector2(420f, 58f), MenuScreen.Pause, 3, font, 22)
             };
+            Text controls = BuilderUtil.CreateText(pauseCard, "Controls",
+                "WASD / left stick   move\n" +
+                "Space / A   jump + double + triple\n" +
+                "Shift / L3   sprint      Ctrl / RT   boost\n" +
+                "V / Y   camera view      Backspace / Select   respawn\n" +
+                "L   free play: walk-on / landing only\n" +
+                "M   palm mute      N   mute all strings\n" +
+                "TAB / PAD WEST / I   interval selection menu\n" +
+                "Esc / Start   pause      Enter / A   confirm\n" +
+                "\n" +
+                "CHORDS  F P5   J P5\u2193   E m3   R M3\n" +
+                "        T P4   Y M2   C m6   G M6\n" +
+                "        H m7   Z m2   X TT   B M7   Q 8va\n" +
+                "        1 m9   2 M9   3 m10  4 M10  5 P11\n" +
+                "        6 A11  7 P12  8 m13  9 M13  0 m14\n" +
+                "        - M14  = P15", 18,
+                TextAnchor.UpperLeft, new Vector2(0.5f, 0.5f), new Vector2(250f, 40f), new Vector2(480f, 430f),
+                new Color(0.78f, 0.84f, 1f, 0.92f), font);
+            controls.lineSpacing = 1.08f;
             BuilderUtil.CreateText(pauseCard, "PauseHint", "ESC / START  ·  RESUME  ·  TAB / WEST  INTERVALS", 17,
-                TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 28f), new Vector2(600f, 24f),
+                TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(1000f, 24f),
                 dim, font);
 
             // Out of lives.

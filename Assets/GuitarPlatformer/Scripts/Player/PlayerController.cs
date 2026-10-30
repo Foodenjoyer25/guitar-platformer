@@ -43,6 +43,7 @@ namespace GuitarPlatformer
         public float BoostMultiplier => BoostActive ? boostMultiplier : 1f;
         public bool LandingOnlyNotes => landingOnlyNotes;
         public bool InputLocked => inputLocked;
+        public bool MovementLocked => inputLocked || stunTimer > 0f;
         public NoteTile CurrentTile => currentTile;
         public string RespawnBinding => respawnAction != null && respawnAction.bindings.Count > 0
             ? respawnAction.bindings[0].path
@@ -67,6 +68,7 @@ namespace GuitarPlatformer
         private float noteSuppressTimer;
         private float boostRemaining;
         private bool inputLocked;
+        private float stunTimer;
         private bool jumpedSinceGrounded;
         private int jumpSuppressFrame = -1;
 
@@ -166,12 +168,16 @@ namespace GuitarPlatformer
             noteDebounce = Mathf.Max(0f, noteDebounce - dt);
             noteSuppressTimer = Mathf.Max(0f, noteSuppressTimer - dt);
             boostRemaining = Mathf.Max(0f, boostRemaining - dt);
+            stunTimer = Mathf.Max(0f, stunTimer - dt);
 
-            // Riff replay and the reveal card freeze the character completely.
-            if (inputLocked)
+            // Menus, replay, and the post-mistake stun freeze the character completely.
+            // Keep adopting the pad underfoot so a teleport/respawn does not replay it
+            // when movement comes back.
+            if (inputLocked || stunTimer > 0f)
             {
                 horizontalVelocity = Vector3.zero;
                 verticalVelocity = 0f;
+                AdoptPadWithoutPlaying();
                 return;
             }
 
@@ -342,8 +348,7 @@ namespace GuitarPlatformer
             // Adopt whatever pad we spawned/respawned/teleported on without replaying it.
             if (noteSuppressTimer > 0f)
             {
-                currentTile = tile;
-                lastPlayedTile = tile;
+                AdoptPadWithoutPlaying();
                 return;
             }
 
@@ -384,6 +389,13 @@ namespace GuitarPlatformer
             return tile;
         }
 
+        private void AdoptPadWithoutPlaying()
+        {
+            NoteTile tile = TileUnderfoot();
+            currentTile = tile;
+            lastPlayedTile = tile;
+        }
+
         /// <summary>
         /// Starts a short speed burst, or refreshes it when one is already running.
         /// There is no cooldown or stamina meter: pressing boost again restarts the burst.
@@ -422,6 +434,17 @@ namespace GuitarPlatformer
             if (!value) jumpSuppressFrame = Time.frameCount;
         }
 
+        /// <summary>Stops walking and jumping for a short recovery after a mistake.</summary>
+        public void StunMovement(float duration)
+        {
+            stunTimer = Mathf.Max(stunTimer, duration);
+            noteSuppressTimer = Mathf.Max(noteSuppressTimer, duration + 0.1f);
+            horizontalVelocity = Vector3.zero;
+            verticalVelocity = 0f;
+            jumpBufferTimer = 0f;
+            AdoptPadWithoutPlaying();
+        }
+
         /// <summary>Moves the player without replaying the destination pad or changing progress.</summary>
         public void TeleportTo(Vector3 position, bool setCheckpoint = true)
         {
@@ -440,9 +463,8 @@ namespace GuitarPlatformer
             noteDebounce = 0f;
             noteSuppressTimer = 0.3f;
             jumpedSinceGrounded = false;
-            currentTile = null;
-            lastPlayedTile = null;
             if (setCheckpoint) checkpoint = position;
+            AdoptPadWithoutPlaying();
             if (gameCamera != null) gameCamera.Snap();
         }
 
@@ -476,8 +498,7 @@ namespace GuitarPlatformer
             noteDebounce = 0f;
             noteSuppressTimer = 0.4f;
             jumpedSinceGrounded = false;
-            currentTile = null;
-            lastPlayedTile = null;
+            AdoptPadWithoutPlaying();
 
             if (gameCamera != null) gameCamera.Snap();
             if (Hud.Instance != null) yield return Hud.Instance.FadeIn(0.28f);

@@ -1,0 +1,213 @@
+{
+    "title": "Do I Wanna Know?",
+    "artist": "Arctic Monkeys",
+    "bpm": 85,
+    "startString": 0,
+    "startFret": 0,
+    "loopLengthBeats": 14.0,
+    "replayCycles": 1,
+    "requiredIntervals": [],
+    "chordKeyHint": "",
+    "steps": [
+        {
+            "stringIndex": 0,
+            "fret": 1,
+            "startBeat": 0.0,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 0,
+            "fret": 3,
+            "startBeat": 0.25,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 1,
+            "startBeat": 0.5,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 0,
+            "fret": 3,
+            "startBeat": 1.0,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 0,
+            "fret": 1,
+            "startBeat": 3.5,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 0,
+            "fret": 3,
+            "startBeat": 3.75,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 1,
+            "startBeat": 4.0,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 2,
+            "fret": 3,
+            "startBeat": 4.5,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 2,
+            "fret": 1,
+            "startBeat": 5.0,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 5,
+            "startBeat": 6.5,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 3,
+            "startBeat": 7.0,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 1,
+            "startBeat": 8.75,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 3,
+            "startBeat": 9.0,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 5,
+            "startBeat": 9.25,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 3,
+            "startBeat": 9.5,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 1,
+            "startBeat": 11.25,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 3,
+            "startBeat": 11.5,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 5,
+            "startBeat": 11.75,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 5,
+            "startBeat": 12.25,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 0,
+            "fret": 3,
+            "startBeat": 12.75,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        }
+    ]
+}

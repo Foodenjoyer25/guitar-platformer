@@ -14,6 +14,12 @@ namespace GuitarPlatformer
     {
         public const string ResourceFolder = "Levels";
 
+        public static RiffLevel LoadNamed(string resourceName)
+        {
+            if (string.IsNullOrEmpty(resourceName)) return null;
+            return Load(Resources.Load<TextAsset>(ResourceFolder + "/" + resourceName));
+        }
+
         public static RiffLevel[] LoadAll()
         {
             TextAsset[] assets = Resources.LoadAll<TextAsset>(ResourceFolder);

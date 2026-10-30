@@ -143,6 +143,7 @@ namespace GuitarPlatformer
 
             if (chords != null) chords.ActiveChanged += OnActiveChanged;
             ShowMainMenu();
+            TryStartPendingCustomLevel();
         }
 
         private void Update()
@@ -388,6 +389,68 @@ namespace GuitarPlatformer
         public void StartCampaign()
         {
             StartChallenge(0);
+        }
+
+        /// <summary>
+        /// Plays a Level Creator riff immediately. If a campaign riff already uses the
+        /// same title it is replaced; otherwise the riff is appended as a custom challenge.
+        /// </summary>
+        public void StartCustomLevel(RiffLevel custom)
+        {
+            if (custom == null || player == null) return;
+            if (levels == null) levels = new RiffLevel[0];
+
+            int found = -1;
+            for (int i = 0; i < levels.Length; i++)
+            {
+                if (levels[i] != null && levels[i].Title == custom.Title)
+                {
+                    found = i;
+                    break;
+                }
+            }
+
+            if (found >= 0)
+            {
+                levels[found] = custom;
+            }
+            else
+            {
+                var next = new RiffLevel[levels.Length + 1];
+                for (int i = 0; i < levels.Length; i++) next[i] = levels[i];
+                found = levels.Length;
+                next[found] = custom;
+                levels = next;
+
+                var nextCompleted = new bool[levels.Length];
+                if (completed != null)
+                {
+                    int copy = completed.Length < nextCompleted.Length ? completed.Length : nextCompleted.Length;
+                    for (int i = 0; i < copy; i++) nextCompleted[i] = completed[i];
+                }
+                completed = nextCompleted;
+            }
+
+            StartLevel(found);
+        }
+
+        private void TryStartPendingCustomLevel()
+        {
+            RiffLevel pending = CustomLevelSession.Consume();
+#if UNITY_EDITOR
+            if (pending == null)
+            {
+                const string key = "GuitarPlatformer.PendingLevelJson";
+                string json = UnityEditor.SessionState.GetString(key, "");
+                if (!string.IsNullOrEmpty(json))
+                {
+                    UnityEditor.SessionState.EraseString(key);
+                    RiffLevelData data = JsonUtility.FromJson<RiffLevelData>(json);
+                    if (data != null) pending = data.ToLevel();
+                }
+            }
+#endif
+            if (pending != null) StartCustomLevel(pending);
         }
 
         /// <summary>Test and debug hook: jump straight to a level, ignoring unlock state.</summary>
@@ -698,6 +761,7 @@ namespace GuitarPlatformer
             NoteTile safe = PreviousCorrectTile();
             if (safe != null && player != null)
                 player.TeleportTo(PadTop(safe));
+            if (player != null) player.StunMovement(0.5f);
         }
 
         private void BeginOutOfLives()
@@ -1016,7 +1080,7 @@ namespace GuitarPlatformer
                 hud.SetLevelVisible(true);
                 hud.SetLevelHeader("FREE PLAY");
                 hud.SetStep("");
-                hud.SetTarget("ESC / START  ·  MENU  ·  L  ·  WALK-ON / LANDING ONLY");
+                hud.SetTarget("PLAY ANY PAD", new Color(0.3f, 0.95f, 1f, 1f));
                 hud.SetChordRequirement("", true);
                 hud.SetRunStatus("", Color.white);
             }
@@ -1035,13 +1099,13 @@ namespace GuitarPlatformer
 
             if (targetTile != null)
             {
-                hud.SetTarget("TARGET  ·  " + targetTile.NoteName + "  ·  STRING " +
-                              targetTile.StringLabel + "  ·  " +
-                              (targetTile.isOpen ? "OPEN" : "FRET " + targetTile.fret));
+                string place = targetTile.isOpen ? "OPEN" : "FRET " + targetTile.fret;
+                hud.SetTarget(targetTile.NoteName + "\nSTRING " + targetTile.StringLabel + "  ·  " + place,
+                    targetTile.noteColor);
             }
             else
             {
-                hud.SetTarget("TARGET  ·  ?");
+                hud.SetTarget("?", Color.white);
             }
 
             UpdateChordRequirement();
