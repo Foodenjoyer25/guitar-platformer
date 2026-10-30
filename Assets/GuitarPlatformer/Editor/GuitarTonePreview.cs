@@ -42,7 +42,7 @@ namespace GuitarPlatformer.EditorTools
                 Mix(mix, note, Mathf.RoundToInt(Rate * spacing * s), 0.75f);
             }
 
-            WriteWav(Path.Combine(OutputFolder, "01_open_strings.wav"), mix);
+            WriteWavFile(Path.Combine(OutputFolder, "01_open_strings.wav"), mix);
         }
 
         private static void RenderPowerChords()
@@ -59,7 +59,7 @@ namespace GuitarPlatformer.EditorTools
             float[] a5 = ChiptuneSynth.GenerateChord(GuitarTuning.OpenMidi[1], 1, new[] { 7 }, false, 1.1f);
             Mix(mix, a5, offset, 0.9f);
 
-            WriteWav(Path.Combine(OutputFolder, "02_power_chords.wav"), mix);
+            WriteWavFile(Path.Combine(OutputFolder, "02_power_chords.wav"), mix);
         }
 
         private static void RenderMutes()
@@ -79,13 +79,13 @@ namespace GuitarPlatformer.EditorTools
             float[] palmChord = ChiptuneSynth.GenerateChord(GuitarTuning.OpenMidi[0], 0, new[] { 7 }, true, 0.8f);
             Mix(mix, palmChord, Mathf.RoundToInt(Rate * 3.2f), 0.95f);
 
-            WriteWav(Path.Combine(OutputFolder, "03_palm_mute.wav"), mix);
+            WriteWavFile(Path.Combine(OutputFolder, "03_palm_mute.wav"), mix);
         }
 
         private static void RenderRiff(RiffLevel level, string fileName)
         {
             float[] mix = ChiptuneSynth.RenderPerformance(level);
-            WriteWav(Path.Combine(OutputFolder, fileName + ".wav"), mix);
+            WriteWavFile(Path.Combine(OutputFolder, fileName + ".wav"), mix);
         }
 
         private static void Mix(float[] target, float[] source, int offset, float gain)
@@ -95,7 +95,7 @@ namespace GuitarPlatformer.EditorTools
                 target[offset + i] += source[i] * gain;
         }
 
-        private static void WriteWav(string path, float[] samples)
+        internal static void WriteWavFile(string path, float[] samples)
         {
             float peak = 0f;
             for (int i = 0; i < samples.Length; i++)

@@ -174,6 +174,48 @@ namespace GuitarPlatformer.EditorTools
                     levels.ActivateMenu(MenuScreen.Challenge, 4);
                     Require(levels.State == LevelState.MainMenu, "back returns to the main menu");
 
+                    // The challenge list grows for custom levels loaded from Resources.
+                    levels.ActivateMenu(MenuScreen.Main, 1);
+                    Require(levels.State == LevelState.ChallengeSelect,
+                        "challenges reopen for the custom-row check");
+                    var menuView = Object.FindAnyObjectByType<MenuView>();
+                    Require(menuView != null, "menu view is available");
+                    var customLabels = new[]
+                    {
+                        "CUSTOM 01", "CUSTOM 02", "CUSTOM 03",
+                        "CUSTOM 04", "CUSTOM 05", "CUSTOM 06"
+                    };
+                    menuView.ShowChallengeSelect(customLabels, new bool[6], new bool[6], 0,
+                        Difficulty.Medium, "CUSTOM");
+                    GameObject extraRow = GameObject.Find("ChallengeRow_5");
+                    Require(extraRow != null,
+                        "challenge list clones rows for custom levels");
+                    levels.HoverMenu(MenuScreen.Challenge, 0);
+                    Require(extraRow != null && !extraRow.activeSelf,
+                        "extra challenge rows hide again for the built-in campaign");
+                    levels.ActivateMenu(MenuScreen.Challenge, 4);
+                    Require(levels.State == LevelState.MainMenu, "back returns to the main menu again");
+
+                    // JSON levels round-trip through the same shape the creator saves.
+                    RiffLevel builtIn = RiffLibrary.CreateCampaignLevels()[0];
+                    RiffLevelData roundTrip = RiffLevelData.FromLevel(builtIn);
+                    RiffLevel rebuilt = roundTrip.ToLevel();
+                    Require(rebuilt.Title == builtIn.Title && rebuilt.Steps.Length == builtIn.Steps.Length &&
+                            rebuilt.Steps[0].StringIndex == builtIn.Steps[0].StringIndex &&
+                            rebuilt.Steps[0].Fret == builtIn.Steps[0].Fret,
+                        "riff data round-trips through the JSON shape");
+                    Require(RiffLevelData.TryValidate(roundTrip, out _), "built-in level data validates");
+                    Require(!RiffLevelData.TryValidate(new RiffLevelData(), out _),
+                        "empty level data is rejected");
+                    var customData = RiffLevelData.FromLevel(builtIn);
+                    customData.title = "Smoke Custom";
+                    var customAsset = new TextAsset(JsonUtility.ToJson(customData));
+                    RiffLevel customLevel = CustomLevelLibrary.Load(customAsset);
+                    Require(customLevel != null && customLevel.Title == "Smoke Custom",
+                        "custom level JSON loads at runtime");
+                    Require(CustomLevelLibrary.LoadAll().Length >= 0,
+                        "custom level folder loads without errors");
+
                     // The interval menu opens from the main menu and returns there.
                     levels.HoverMenu(MenuScreen.Main, 2);
                     Require(levels.MainMenuSelection == 2, "mouse hover selects the interval row");

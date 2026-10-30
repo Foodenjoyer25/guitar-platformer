@@ -1,9 +1,11 @@
+using System.Collections.Generic;
+
 namespace GuitarPlatformer
 {
-    /// <summary>The four-riff campaign, in play order.</summary>
+    /// <summary>The four-riff campaign plus any custom levels saved by the Level Creator.</summary>
     public static class RiffLibrary
     {
-        public static RiffLevel[] CreateLevels()
+        public static RiffLevel[] CreateCampaignLevels()
         {
             return new[]
             {
@@ -12,6 +14,18 @@ namespace GuitarPlatformer
                 SmellsLikeTeenSpirit(),
                 BackInBlack()
             };
+        }
+
+        public static RiffLevel[] CreateLevels()
+        {
+            RiffLevel[] campaign = CreateCampaignLevels();
+            RiffLevel[] custom = CustomLevelLibrary.LoadAll();
+            if (custom.Length == 0) return campaign;
+
+            var levels = new List<RiffLevel>(campaign.Length + custom.Length);
+            levels.AddRange(campaign);
+            levels.AddRange(custom);
+            return levels.ToArray();
         }
 
         // Deep Purple - Smoke on the Water. Low E open is the safe start pad.

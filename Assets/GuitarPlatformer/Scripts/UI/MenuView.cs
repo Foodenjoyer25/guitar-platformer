@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -28,6 +29,9 @@ namespace GuitarPlatformer
         [Header("Rows")]
         [SerializeField] private MenuRow[] mainRows;
         [SerializeField] private MenuRow[] challengeRows;
+        [SerializeField] private RectTransform challengeContent;
+        [SerializeField] private ScrollRect challengeScroll;
+        [SerializeField] private float challengeRowHeight = 68f;
         [SerializeField] private MenuRow backRow;
         [SerializeField] private MenuRow[] difficultyRows;
         [SerializeField] private MenuRow[] pauseRows;
@@ -50,6 +54,9 @@ namespace GuitarPlatformer
         private static readonly Color DifficultySelectedBg = new Color(0.3f, 0.95f, 1f, 0.95f);
         private static readonly Color DifficultySelectedText = new Color(0.01f, 0.03f, 0.08f, 1f);
         private static readonly Color DifficultyText = new Color(0.63f, 0.72f, 0.9f, 0.9f);
+
+        private readonly List<MenuRow> runtimeChallengeRows = new List<MenuRow>();
+        private bool challengeRowsReady;
 
         private void Awake()
         {
@@ -77,7 +84,32 @@ namespace GuitarPlatformer
             pauseRows = pauseMenuRows;
             challengeStatus = status;
             difficultyDescription = difficultyHelp;
+            InitializeChallengeRows();
             HideAll();
+        }
+
+        /// <summary>
+        /// Wires the scrollable challenge list. The scene provides a few seed rows; extra
+        /// custom-level rows are cloned from the first row on demand.
+        /// </summary>
+        public void ConfigureChallengeList(RectTransform content, ScrollRect scroll, float rowHeight)
+        {
+            challengeContent = content;
+            challengeScroll = scroll;
+            challengeRowHeight = Mathf.Max(24f, rowHeight);
+            InitializeChallengeRows();
+        }
+
+        private void InitializeChallengeRows()
+        {
+            runtimeChallengeRows.Clear();
+            challengeRowsReady = true;
+            if (challengeRows == null) return;
+            for (int i = 0; i < challengeRows.Length; i++)
+            {
+                if (challengeRows[i] != null)
+                    runtimeChallengeRows.Add(challengeRows[i]);
+            }
         }
 
         public void ShowMainMenu(int selected)
@@ -93,22 +125,99 @@ namespace GuitarPlatformer
             HideAll();
             SetGroup(challengeGroup, true);
 
-            if (challengeRows != null)
+            int count = labels != null ? labels.Length : 0;
+            if (!challengeRowsReady) InitializeChallengeRows();
+            EnsureChallengeRows(count);
+
+            for (int i = 0; i < runtimeChallengeRows.Count; i++)
             {
-                for (int i = 0; i < challengeRows.Length; i++)
-                {
-                    bool isLocked = locked != null && i < locked.Length && locked[i];
-                    bool isCompleted = completed != null && i < completed.Length && completed[i];
-                    string label = labels != null && i < labels.Length ? labels[i] : "";
-                    SetChallengeRow(challengeRows[i], label, isLocked, isCompleted, selected == i);
-                }
+                MenuRow row = runtimeChallengeRows[i];
+                bool visible = i < count;
+                if (row != null && row.background != null)
+                    row.background.gameObject.SetActive(visible);
+                if (!visible) continue;
+
+                PositionChallengeRow(row, i);
+                bool isLocked = locked != null && i < locked.Length && locked[i];
+                bool isCompleted = completed != null && i < completed.Length && completed[i];
+                string label = labels != null && i < labels.Length ? labels[i] : "";
+                SetChallengeRow(row, label, isLocked, isCompleted, selected == i);
             }
 
-            int backIdx = challengeRows != null ? challengeRows.Length : 3;
+            int backIdx = count;
             SetRow(backRow, selected == backIdx, false, false, null);
+            ScrollChallengeSelection(selected, count);
             SetDifficultyRows(difficulty);
             if (challengeStatus != null) challengeStatus.text = status ?? "";
             if (difficultyDescription != null) difficultyDescription.text = DifficultyHelp(difficulty);
+        }
+
+        private void EnsureChallengeRows(int count)
+        {
+            if (count <= 0) return;
+
+            MenuRow source = runtimeChallengeRows.Count > 0 ? runtimeChallengeRows[0] : null;
+            while (runtimeChallengeRows.Count < count && source != null &&
+                   source.background != null && source.label != null)
+            {
+                Transform parent = challengeContent != null
+                    ? challengeContent
+                    : source.background.transform.parent;
+                GameObject clone = Instantiate(source.background.gameObject, parent);
+                clone.name = "ChallengeRow_" + runtimeChallengeRows.Count;
+                clone.SetActive(true);
+
+                var button = clone.GetComponent<MenuButton>();
+                if (button != null)
+                {
+                    button.screen = MenuScreen.Challenge;
+                    button.index = runtimeChallengeRows.Count;
+                }
+
+                var row = new MenuRow
+                {
+                    background = clone.GetComponent<Image>(),
+                    label = clone.GetComponentInChildren<Text>(true)
+                };
+                runtimeChallengeRows.Add(row);
+            }
+        }
+
+        private void PositionChallengeRow(MenuRow row, int index)
+        {
+            if (row == null || row.background == null) return;
+            RectTransform rect = row.background.rectTransform;
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, -index * challengeRowHeight);
+            rect.sizeDelta = new Vector2(760f, challengeRowHeight - 8f);
+        }
+
+        private void ScrollChallengeSelection(int selected, int count)
+        {
+            if (challengeScroll == null || challengeContent == null || count <= 0) return;
+
+            float viewportHeight = challengeScroll.viewport != null
+                ? challengeScroll.viewport.rect.height
+                : 400f;
+            float contentHeight = Mathf.Max(viewportHeight, count * challengeRowHeight + 8f);
+            challengeContent.sizeDelta = new Vector2(challengeContent.sizeDelta.x, contentHeight);
+
+            float maxScroll = Mathf.Max(0f, contentHeight - viewportHeight);
+            if (maxScroll <= 0.001f)
+            {
+                challengeScroll.verticalNormalizedPosition = 1f;
+                return;
+            }
+
+            if (selected < 0 || selected >= count)
+                return;
+
+            float rowTop = selected * challengeRowHeight;
+            float offset = Mathf.Clamp(rowTop - (viewportHeight - challengeRowHeight) * 0.5f,
+                0f, maxScroll);
+            challengeScroll.verticalNormalizedPosition = 1f - offset / maxScroll;
         }
 
         public void ConfigureIntervals(CanvasGroup group, MenuRow[] rows, MenuRow back, Text summary)

@@ -400,7 +400,7 @@ namespace GuitarPlatformer
             if (!campaignActive) savedLandingOnly = player.LandingOnlyNotes;
             campaignActive = true;
             levelIndex = index;
-            challengeSelection = Mathf.Clamp(index, 0, 3);
+            challengeSelection = Mathf.Clamp(index, 0, Mathf.Max(0, levels.Length - 1));
             LoadLevel();
         }
 
@@ -414,7 +414,7 @@ namespace GuitarPlatformer
             if (!campaignActive) savedLandingOnly = player.LandingOnlyNotes;
             campaignActive = true;
             levelIndex = index;
-            challengeSelection = Mathf.Clamp(index, 0, 3);
+            challengeSelection = Mathf.Clamp(index, 0, Mathf.Max(0, levels.Length - 1));
             LoadLevel();
         }
 
@@ -953,7 +953,7 @@ namespace GuitarPlatformer
             stepIndex = 0;
             targetTile = null;
             lastCorrectTile = null;
-            challengeSelection = Mathf.Clamp(challengeSelection, 0, 3);
+            challengeSelection = Mathf.Clamp(challengeSelection, 0, Mathf.Max(0, levels.Length - 1));
 
             if (player != null) player.SetInputLocked(true);
             if (chords != null) chords.Clear();
