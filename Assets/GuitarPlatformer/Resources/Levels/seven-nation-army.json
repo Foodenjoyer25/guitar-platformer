@@ -1,0 +1,173 @@
+{
+    "title": "Seven Nation Army",
+    "artist": "The White Stripes",
+    "bpm": 124,
+    "startString": 1,
+    "startFret": 3,
+    "loopLengthBeats": 16.0,
+    "replayCycles": 1,
+    "requiredIntervals": [],
+    "chordKeyHint": "",
+    "steps": [
+        {
+            "stringIndex": 1,
+            "fret": 7,
+            "startBeat": 0.0,
+            "lengthBeats": 1.5,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 7,
+            "startBeat": 1.5,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 10,
+            "startBeat": 2.0,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 7,
+            "startBeat": 2.75,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 5,
+            "startBeat": 3.5,
+            "lengthBeats": 0.5,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 3,
+            "startBeat": 4.0,
+            "lengthBeats": 2.0,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 2,
+            "startBeat": 6.0,
+            "lengthBeats": 2.0,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 7,
+            "startBeat": 8.0,
+            "lengthBeats": 1.5,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 7,
+            "startBeat": 9.5,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 10,
+            "startBeat": 10.0,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 7,
+            "startBeat": 10.75,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 5,
+            "startBeat": 11.5,
+            "lengthBeats": 0.5,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 3,
+            "startBeat": 12.0,
+            "lengthBeats": 0.5,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 5,
+            "startBeat": 12.75,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 3,
+            "startBeat": 13.5,
+            "lengthBeats": 0.25,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        },
+        {
+            "stringIndex": 1,
+            "fret": 2,
+            "startBeat": 14.0,
+            "lengthBeats": 2.0,
+            "muted": false,
+            "overrideChord": false,
+            "chordFree": false,
+            "chordIntervals": []
+        }
+    ]
+}

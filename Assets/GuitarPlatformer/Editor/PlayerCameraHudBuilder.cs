@@ -245,7 +245,7 @@ namespace GuitarPlatformer.EditorTools
                 TextAnchor.UpperRight, new Vector2(1f, 1f), new Vector2(-48f, -62f), new Vector2(320f, 70f),
                 Color.white, a.Font, FontStyle.Bold);
 
-            Text boostLabel = BuilderUtil.CreateText(canvasGo.transform, "BoostLabel", "CTRL BOOST · READY", 16,
+            Text boostLabel = BuilderUtil.CreateText(canvasGo.transform, "BoostLabel", "CTRL · PLAY TILE", 16,
                 TextAnchor.LowerLeft, new Vector2(0f, 0f), new Vector2(50f, 40f), new Vector2(300f, 22f),
                 dim, a.Font, FontStyle.Bold);
 
@@ -398,16 +398,16 @@ namespace GuitarPlatformer.EditorTools
                 TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 54f), new Vector2(800f, 26f),
                 dim, font);
 
-            // Challenge select. Rows live in a scroll view because the Level Creator can
-            // append custom levels to the campaign.
-            Transform challengeCard = CreateMenuCard(challengeRoot, new Vector2(1080f, 880f),
+            // Challenge select is rebuilt at runtime by MenuView so the scene copy is only
+            // a placeholder. Keep the names the smoke tests look for.
+            Transform challengeCard = CreateMenuCard(challengeRoot, new Vector2(1040f, 900f),
                 new Color(0.018f, 0.012f, 0.05f, 0.97f));
-            BuilderUtil.CreateText(challengeCard, "ChallengeTitle", "CHALLENGES", 58, TextAnchor.UpperCenter,
-                new Vector2(0.5f, 1f), new Vector2(0f, -38f), new Vector2(980f, 70f), cyan, font,
+            BuilderUtil.CreateText(challengeCard, "ChallengeTitle", "CHALLENGES", 56, TextAnchor.UpperCenter,
+                new Vector2(0.5f, 1f), new Vector2(0f, -32f), new Vector2(960f, 68f), cyan, font,
                 FontStyle.Bold);
-            BuilderUtil.CreateText(challengeCard, "ChallengeSubtitle", "CAMPAIGN + CUSTOM LEVELS", 18,
-                TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -112f),
-                new Vector2(980f, 26f), dim, font, FontStyle.Bold);
+            BuilderUtil.CreateText(challengeCard, "ChallengeSubtitle", "PICK A RIFF", 18,
+                TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -102f),
+                new Vector2(960f, 24f), dim, font, FontStyle.Bold);
 
             var challengeListGo = new GameObject("ChallengeList");
             challengeListGo.transform.SetParent(challengeCard, false);
@@ -415,70 +415,53 @@ namespace GuitarPlatformer.EditorTools
             challengeListRect.anchorMin = new Vector2(0.5f, 0.5f);
             challengeListRect.anchorMax = new Vector2(0.5f, 0.5f);
             challengeListRect.pivot = new Vector2(0.5f, 0.5f);
-            challengeListRect.anchoredPosition = new Vector2(0f, 75f);
-            challengeListRect.sizeDelta = new Vector2(900f, 400f);
+            challengeListRect.anchoredPosition = new Vector2(0f, 70f);
+            challengeListRect.sizeDelta = new Vector2(840f, 300f);
             var challengeListImage = challengeListGo.AddComponent<Image>();
-            challengeListImage.color = new Color(0f, 0f, 0f, 0.01f);
+            challengeListImage.color = new Color(0.01f, 0.01f, 0.03f, 0.35f);
             challengeListImage.raycastTarget = true;
             challengeListGo.AddComponent<RectMask2D>();
 
-            var challengeScroll = challengeListGo.AddComponent<ScrollRect>();
-            challengeScroll.viewport = challengeListRect;
-            challengeScroll.horizontal = false;
-            challengeScroll.vertical = true;
-            challengeScroll.movementType = ScrollRect.MovementType.Clamped;
-            challengeScroll.scrollSensitivity = 32f;
-
-            var challengeContentGo = new GameObject("Content");
-            challengeContentGo.transform.SetParent(challengeListGo.transform, false);
-            var challengeContentRect = challengeContentGo.AddComponent<RectTransform>();
-            challengeContentRect.anchorMin = new Vector2(0f, 1f);
-            challengeContentRect.anchorMax = new Vector2(1f, 1f);
-            challengeContentRect.pivot = new Vector2(0.5f, 1f);
-            challengeContentRect.anchoredPosition = Vector2.zero;
-            challengeContentRect.sizeDelta = new Vector2(0f, 400f);
-            challengeScroll.content = challengeContentRect;
-
             MenuView.MenuRow[] challengeRows =
             {
-                CreateMenuRow(challengeContentGo.transform, "ChallengeRow_0", "CHALLENGE 01  ·  ???",
-                    new Vector2(0f, 0f), new Vector2(760f, 60f), MenuScreen.Challenge, 0, font, 23),
-                CreateMenuRow(challengeContentGo.transform, "ChallengeRow_1", "CHALLENGE 02  ·  ???",
-                    new Vector2(0f, -68f), new Vector2(760f, 60f), MenuScreen.Challenge, 1, font, 23),
-                CreateMenuRow(challengeContentGo.transform, "ChallengeRow_2", "CHALLENGE 03  ·  ???",
-                    new Vector2(0f, -136f), new Vector2(760f, 60f), MenuScreen.Challenge, 2, font, 23),
-                CreateMenuRow(challengeContentGo.transform, "ChallengeRow_3", "CHALLENGE 04  ·  ???",
-                    new Vector2(0f, -204f), new Vector2(760f, 60f), MenuScreen.Challenge, 3, font, 23),
-                CreateMenuRow(challengeContentGo.transform, "ChallengeRow_4", "CHALLENGE 05  ·  ???",
-                    new Vector2(0f, -272f), new Vector2(760f, 60f), MenuScreen.Challenge, 4, font, 23)
+                CreateMenuRow(challengeListGo.transform, "ChallengeRow_0", "CHALLENGE 01  ·  ???",
+                    new Vector2(0f, 116f), new Vector2(780f, 50f), MenuScreen.Challenge, 0, font, 22),
+                CreateMenuRow(challengeListGo.transform, "ChallengeRow_1", "CHALLENGE 02  ·  ???",
+                    new Vector2(0f, 58f), new Vector2(780f, 50f), MenuScreen.Challenge, 1, font, 22),
+                CreateMenuRow(challengeListGo.transform, "ChallengeRow_2", "CHALLENGE 03  ·  ???",
+                    new Vector2(0f, 0f), new Vector2(780f, 50f), MenuScreen.Challenge, 2, font, 22),
+                CreateMenuRow(challengeListGo.transform, "ChallengeRow_3", "CHALLENGE 04  ·  ???",
+                    new Vector2(0f, -58f), new Vector2(780f, 50f), MenuScreen.Challenge, 3, font, 22),
+                CreateMenuRow(challengeListGo.transform, "ChallengeRow_4", "CHALLENGE 05  ·  ???",
+                    new Vector2(0f, -116f), new Vector2(780f, 50f), MenuScreen.Challenge, 4, font, 22)
             };
 
-            BuilderUtil.CreateText(challengeCard, "DifficultyTitle", "DIFFICULTY  ·  ← / → OR CLICK", 20,
-                TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, -155f),
-                new Vector2(760f, 28f), dim, font, FontStyle.Bold);
+            BuilderUtil.CreateText(challengeCard, "DifficultyTitle", "DIFFICULTY", 18,
+                TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, -175f),
+                new Vector2(760f, 24f), dim, font, FontStyle.Bold);
 
             MenuView.MenuRow[] difficultyRows =
             {
-                CreateMenuRow(challengeCard, "DifficultyRow_0", "EASY", new Vector2(-260f, -215f),
-                    new Vector2(230f, 56f), MenuScreen.Difficulty, 0, font, 22),
-                CreateMenuRow(challengeCard, "DifficultyRow_1", "MEDIUM", new Vector2(0f, -215f),
-                    new Vector2(230f, 56f), MenuScreen.Difficulty, 1, font, 22),
-                CreateMenuRow(challengeCard, "DifficultyRow_2", "HARD", new Vector2(260f, -215f),
-                    new Vector2(230f, 56f), MenuScreen.Difficulty, 2, font, 22)
+                CreateMenuRow(challengeCard, "DifficultyRow_0", "EASY", new Vector2(-250f, -230f),
+                    new Vector2(220f, 52f), MenuScreen.Difficulty, 0, font, 22),
+                CreateMenuRow(challengeCard, "DifficultyRow_1", "MEDIUM", new Vector2(0f, -230f),
+                    new Vector2(220f, 52f), MenuScreen.Difficulty, 1, font, 22),
+                CreateMenuRow(challengeCard, "DifficultyRow_2", "HARD", new Vector2(250f, -230f),
+                    new Vector2(220f, 52f), MenuScreen.Difficulty, 2, font, 22)
             };
 
-            Text challengeStatus = BuilderUtil.CreateText(challengeCard, "ChallengeStatus", "", 23,
-                TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, -278f),
-                new Vector2(960f, 34f), Color.white, font, FontStyle.Bold);
-            Text difficultyDescription = BuilderUtil.CreateText(challengeCard, "DifficultyDescription", "", 17,
-                TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, -312f),
-                new Vector2(980f, 30f), dim, font, FontStyle.Bold);
+            Text challengeStatus = BuilderUtil.CreateText(challengeCard, "ChallengeStatus", "", 22,
+                TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, -290f),
+                new Vector2(960f, 32f), Color.white, font, FontStyle.Bold);
+            Text difficultyDescription = BuilderUtil.CreateText(challengeCard, "DifficultyDescription", "", 16,
+                TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, -324f),
+                new Vector2(980f, 28f), dim, font, FontStyle.Bold);
 
-            MenuView.MenuRow backRow = CreateMenuRow(challengeCard, "ChallengeBack", "BACK", new Vector2(0f, -365f),
-                new Vector2(300f, 56f), MenuScreen.Challenge, 4, font, 22);
+            MenuView.MenuRow backRow = CreateMenuRow(challengeCard, "ChallengeBack", "BACK", new Vector2(0f, -380f),
+                new Vector2(280f, 52f), MenuScreen.Challenge, challengeRows.Length, font, 22);
             BuilderUtil.CreateText(challengeCard, "ChallengeHint",
-                "W / S  ·  LEFT STICK  ·  ENTER / A  ·  ESC / B  ·  MOUSE  ·  SCROLL FOR CUSTOM LEVELS", 17,
-                TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 30f), new Vector2(980f, 26f),
+                "W / S  ·  ENTER / A  ·  ESC / B  ·  MOUSE  ·  ← / → DIFFICULTY", 16,
+                TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 28f), new Vector2(980f, 24f),
                 dim, font);
 
             // Pause. Controls live here so the play HUD stays focused on the next note.
@@ -501,7 +484,7 @@ namespace GuitarPlatformer.EditorTools
             Text controls = BuilderUtil.CreateText(pauseCard, "Controls",
                 "WASD / left stick   move\n" +
                 "Space / A   jump + double + triple\n" +
-                "Shift / L3   sprint      Ctrl / RT   boost\n" +
+                "Shift / L3   sprint      Ctrl / RT   play tile\n" +
                 "V / Y   camera view      Backspace / Select   respawn\n" +
                 "L   free play: walk-on / landing only\n" +
                 "M   palm mute      N   mute all strings\n" +
@@ -578,7 +561,6 @@ namespace GuitarPlatformer.EditorTools
 
             menu.Configure(mainGroup, challengeGroup, pauseGroup, outGroup, mainRows, challengeRows,
                 backRow, difficultyRows, pauseRows, challengeStatus, difficultyDescription);
-            menu.ConfigureChallengeList(challengeContentRect, challengeScroll, 68f);
             menu.ConfigureIntervals(intervalGroup, intervalRows, intervalBack, intervalSummary);
             return menu;
         }

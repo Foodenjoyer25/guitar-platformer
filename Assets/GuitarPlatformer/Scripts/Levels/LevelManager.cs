@@ -242,7 +242,7 @@ namespace GuitarPlatformer
 
         private void HandleChallengeSelect(Keyboard keyboard, Gamepad gamepad)
         {
-            int total = levels != null ? levels.Length + 1 : 5;
+            int total = levels != null ? levels.Length + 1 : 1;
             int direction = NavigationDirection(keyboard, gamepad);
             if (direction != 0)
             {
@@ -256,7 +256,7 @@ namespace GuitarPlatformer
 
             if (ConfirmPressed(keyboard, gamepad))
             {
-                if (challengeSelection >= (levels != null ? levels.Length : 4)) ShowMainMenu();
+                if (challengeSelection >= (levels != null ? levels.Length : 0)) ShowMainMenu();
                 else StartChallenge(challengeSelection);
             }
             else if (BackPressed(keyboard, gamepad))
@@ -309,7 +309,7 @@ namespace GuitarPlatformer
 
                 case MenuScreen.Challenge:
                     if (state != LevelState.ChallengeSelect) return;
-                    challengeSelection = Mathf.Clamp(index, 0, levels != null ? levels.Length : 4);
+                    challengeSelection = Mathf.Clamp(index, 0, levels != null ? levels.Length : 0);
                     RefreshChallengeMenu();
                     break;
 
@@ -341,7 +341,7 @@ namespace GuitarPlatformer
 
                 case MenuScreen.Challenge:
                     if (state != LevelState.ChallengeSelect) return;
-                    if (index >= (levels != null ? levels.Length : 4)) ShowMainMenu();
+                    if (index >= (levels != null ? levels.Length : 0)) ShowMainMenu();
                     else StartChallenge(index);
                     break;
 

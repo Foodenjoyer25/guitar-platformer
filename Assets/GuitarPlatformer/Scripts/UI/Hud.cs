@@ -291,9 +291,10 @@ namespace GuitarPlatformer
 
             if (boostText != null)
             {
-                boostText.text = player.BoostActive ? "BOOST!" : "CTRL BOOST · READY";
-                boostText.color = player.BoostActive
-                    ? new Color(1f, 0.82f, 0.25f, 1f)
+                bool onPad = player.CurrentTile != null;
+                boostText.text = "CTRL · PLAY TILE";
+                boostText.color = onPad
+                    ? new Color(0.85f, 0.92f, 1f, 0.95f)
                     : new Color(0.63f, 0.72f, 0.9f, 0.82f);
             }
         }

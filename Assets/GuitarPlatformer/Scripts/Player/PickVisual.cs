@@ -10,7 +10,7 @@ namespace GuitarPlatformer
         private PlayerController player;
         private Light glow;
         private Vector3 scale = Vector3.one;
-        private float boostFlash;
+        private float retriggerFlash;
         private bool visible = true;
 
         public bool IsVisible => visible;
@@ -37,10 +37,10 @@ namespace GuitarPlatformer
             if (trail != null) trail.emitting = value;
         }
 
-        public void OnBoost()
+        public void OnRetrigger()
         {
             scale = new Vector3(0.82f, 1.38f, 0.82f);
-            boostFlash = 1f;
+            retriggerFlash = 1f;
         }
 
         public void OnJump()
@@ -75,7 +75,7 @@ namespace GuitarPlatformer
         {
             float dt = Time.deltaTime;
             scale = Vector3.Lerp(scale, Vector3.one, 1f - Mathf.Exp(-13f * dt));
-            boostFlash = Mathf.MoveTowards(boostFlash, 0f, dt * 3.2f);
+            retriggerFlash = Mathf.MoveTowards(retriggerFlash, 0f, dt * 3.2f);
 
             float bob = player != null && player.IsGrounded ? Mathf.Sin(Time.time * 6.5f) * 0.028f : 0f;
             Vector3 targetPosition = new Vector3(0f, bob, 0f);
@@ -95,9 +95,9 @@ namespace GuitarPlatformer
             transform.localScale = scale;
 
             if (glow != null)
-                glow.intensity = 4.5f + boostFlash * 7f;
+                glow.intensity = 4.5f + retriggerFlash * 7f;
             if (trail != null)
-                trail.widthMultiplier = 0.16f + boostFlash * 0.13f;
+                trail.widthMultiplier = 0.16f + retriggerFlash * 0.13f;
         }
     }
 }

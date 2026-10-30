@@ -63,21 +63,31 @@ namespace GuitarPlatformer
                 "");
         }
 
-        // The White Stripes - Seven Nation Army. A open is the safe start pad.
-        // Two 2-bar phrases of the E-E-G-E-D-C-B bass line.
+        // The White Stripes - Seven Nation Army. Imported from the Level Creator JSON.
         private static RiffLevel SevenNationArmy()
         {
-            int[] strings = new int[14];
-            int[] frets = { 7, 7, 10, 7, 5, 3, 2, 7, 7, 10, 7, 5, 3, 2 };
-            float[] starts = { 0f, 1.5f, 2f, 2.75f, 3.5f, 4f, 6f, 8f, 9.5f, 10f, 10.75f, 11.5f, 12f, 14f };
-            float[] lengths = { 1.5f, 0.25f, 0.25f, 0.25f, 0.5f, 2f, 2f, 1.5f, 0.25f, 0.25f, 0.25f, 0.5f, 2f, 2f };
+            return CustomLevelLibrary.LoadNamed("seven-nation-army") ?? SevenNationArmyFallback();
+        }
+
+        private static RiffLevel SevenNationArmyFallback()
+        {
+            int[] strings = new int[16];
+            int[] frets = { 7, 7, 10, 7, 5, 3, 2, 7, 7, 10, 7, 5, 3, 5, 3, 2 };
+            float[] starts =
+            {
+                0f, 1.5f, 2f, 2.75f, 3.5f, 4f, 6f, 8f, 9.5f, 10f, 10.75f, 11.5f, 12f, 12.75f, 13.5f, 14f
+            };
+            float[] lengths =
+            {
+                1.5f, 0.25f, 0.25f, 0.25f, 0.5f, 2f, 2f, 1.5f, 0.25f, 0.25f, 0.25f, 0.5f, 0.5f, 0.25f, 0.25f, 2f
+            };
             for (int i = 0; i < strings.Length; i++) strings[i] = 1;
 
             return new RiffLevel(
                 "Seven Nation Army",
                 "The White Stripes",
                 124,
-                1, 0,
+                1, 3,
                 BuildSteps(strings, frets, starts, lengths),
                 16f,
                 new int[0],

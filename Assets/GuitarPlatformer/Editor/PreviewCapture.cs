@@ -205,7 +205,7 @@ namespace GuitarPlatformer.EditorTools
             SetText(hud, "Recent_4", "B4", new Color(1f, 0.3f, 0.62f));
             SetText(hud, "ViewLabel", "VIEW  ·  GUITARIST", new Color(0.3f, 0.95f, 1f));
             SetText(hud, "ChordLabel", "CHORD  ·  m3 + P5", new Color(1f, 0.48f, 0.92f, 1f));
-            SetText(hud, "BoostLabel", "CTRL BOOST · READY", new Color(0.63f, 0.72f, 0.9f, 0.82f));
+            SetText(hud, "BoostLabel", "CTRL · PLAY TILE", new Color(0.63f, 0.72f, 0.9f, 0.82f));
             SetText(hud, "MuteLabel", "STRINGS  ·  OFF", new Color(0.63f, 0.72f, 0.9f, 0.82f));
         }
 

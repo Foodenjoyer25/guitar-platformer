@@ -29,18 +29,12 @@ namespace GuitarPlatformer
         [Header("Note Triggering")]
         [SerializeField] private bool landingOnlyNotes;
 
-        [Header("Boost")]
-        [SerializeField] private float boostMultiplier = 1.8f;
-        [SerializeField] private float boostDuration = 0.7f;
-
         public PickVisual Visual { get; set; }
         public bool IsGrounded { get; private set; }
         public int JumpsUsed => jumpsUsed;
         public float VerticalVelocity => verticalVelocity;
         public float CurrentSpeed => horizontalVelocity.magnitude;
         public Vector3 HorizontalVelocity => horizontalVelocity;
-        public bool BoostActive => boostRemaining > 0f;
-        public float BoostMultiplier => BoostActive ? boostMultiplier : 1f;
         public bool LandingOnlyNotes => landingOnlyNotes;
         public bool InputLocked => inputLocked;
         public bool MovementLocked => inputLocked || stunTimer > 0f;
@@ -66,7 +60,6 @@ namespace GuitarPlatformer
         private NoteTile lastPlayedTile;
         private float noteDebounce;
         private float noteSuppressTimer;
-        private float boostRemaining;
         private bool inputLocked;
         private float stunTimer;
         private bool jumpedSinceGrounded;
@@ -75,7 +68,7 @@ namespace GuitarPlatformer
         private InputAction moveAction;
         private InputAction jumpAction;
         private InputAction sprintAction;
-        private InputAction boostAction;
+        private InputAction retriggerAction;
         private InputAction respawnAction;
 
         private void Awake()
@@ -92,7 +85,7 @@ namespace GuitarPlatformer
             moveAction?.Enable();
             jumpAction?.Enable();
             sprintAction?.Enable();
-            boostAction?.Enable();
+            retriggerAction?.Enable();
             respawnAction?.Enable();
         }
 
@@ -101,7 +94,7 @@ namespace GuitarPlatformer
             moveAction?.Disable();
             jumpAction?.Disable();
             sprintAction?.Disable();
-            boostAction?.Disable();
+            retriggerAction?.Disable();
             respawnAction?.Disable();
         }
 
@@ -111,7 +104,7 @@ namespace GuitarPlatformer
             moveAction?.Dispose();
             jumpAction?.Dispose();
             sprintAction?.Dispose();
-            boostAction?.Dispose();
+            retriggerAction?.Dispose();
             respawnAction?.Dispose();
         }
 
@@ -148,10 +141,10 @@ namespace GuitarPlatformer
             sprintAction.AddBinding("<Keyboard>/leftShift");
             sprintAction.AddBinding("<Gamepad>/leftStickPress");
 
-            boostAction = new InputAction("Boost", InputActionType.Button);
-            boostAction.AddBinding("<Keyboard>/leftCtrl");
-            boostAction.AddBinding("<Keyboard>/rightCtrl");
-            boostAction.AddBinding("<Gamepad>/rightTrigger");
+            retriggerAction = new InputAction("Retrigger", InputActionType.Button);
+            retriggerAction.AddBinding("<Keyboard>/leftCtrl");
+            retriggerAction.AddBinding("<Keyboard>/rightCtrl");
+            retriggerAction.AddBinding("<Gamepad>/rightTrigger");
 
             // R is the major-third chord toggle now; respawn moved to Backspace / Select.
             respawnAction = new InputAction("Respawn", InputActionType.Button);
@@ -167,7 +160,6 @@ namespace GuitarPlatformer
             graceTimer = Mathf.Max(0f, graceTimer - dt);
             noteDebounce = Mathf.Max(0f, noteDebounce - dt);
             noteSuppressTimer = Mathf.Max(0f, noteSuppressTimer - dt);
-            boostRemaining = Mathf.Max(0f, boostRemaining - dt);
             stunTimer = Mathf.Max(0f, stunTimer - dt);
 
             // Menus, replay, and the post-mistake stun freeze the character completely.
@@ -200,10 +192,10 @@ namespace GuitarPlatformer
             Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
             Vector3 wish = forward * input.y + right * input.x;
 
-            if (boostAction.WasPressedThisFrame() && wish.sqrMagnitude > 0.01f)
-                TryStartBoost();
+            if (retriggerAction.WasPressedThisFrame())
+                TryRetriggerTile();
 
-            float speed = (sprintAction.IsPressed() ? sprintSpeed : moveSpeed) * BoostMultiplier;
+            float speed = sprintAction.IsPressed() ? sprintSpeed : moveSpeed;
             float acceleration = IsGrounded ? groundAcceleration : airAcceleration;
             horizontalVelocity = Vector3.MoveTowards(horizontalVelocity, wish * speed, acceleration * dt);
 
@@ -397,17 +389,31 @@ namespace GuitarPlatformer
         }
 
         /// <summary>
-        /// Starts a short speed burst, or refreshes it when one is already running.
-        /// There is no cooldown or stamina meter: pressing boost again restarts the burst.
-        /// Input calls this while moving; tests may bypass that gate.
+        /// Plays the pad underfoot again without leaving it. Campaign landings still
+        /// require a jump, so this is how you restrike the same tile in place.
         /// </summary>
-        public bool TryStartBoost(bool ignoreMovement = false)
+        public bool TryRetriggerTile()
         {
-            if (!ignoreMovement && horizontalVelocity.sqrMagnitude < 0.25f) return false;
+            if (noteSuppressTimer > 0f) return false;
 
-            boostRemaining = boostDuration;
-            if (Visual != null) Visual.OnBoost();
-            if (gameCamera != null) gameCamera.Shake(0.1f, 0.025f, 0.9f);
+            NoteTile tile = TileUnderfoot();
+            if (tile == null) return false;
+            if (LevelManager.Instance != null && !LevelManager.Instance.CanTriggerNote(tile))
+                return false;
+
+            currentTile = tile;
+            lastPlayedTile = tile;
+            noteDebounce = 0.08f;
+            checkpoint = new Vector3(tile.transform.position.x, FretboardLayout.PadHeight + 0.06f,
+                tile.transform.position.z);
+            tile.Play(0.7f);
+            if (Visual != null)
+            {
+                Visual.SetTrailColor(tile.noteColor);
+                Visual.OnRetrigger();
+            }
+            if (gameCamera != null)
+                gameCamera.Shake(0.08f, 0.04f, 0.55f);
             return true;
         }
 
@@ -494,7 +500,6 @@ namespace GuitarPlatformer
             verticalVelocity = -2f;
             horizontalVelocity = Vector3.zero;
             graceTimer = 0.45f;
-            boostRemaining = 0f;
             noteDebounce = 0f;
             noteSuppressTimer = 0.4f;
             jumpedSinceGrounded = false;

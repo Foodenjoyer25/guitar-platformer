@@ -29,9 +29,6 @@ namespace GuitarPlatformer
         [Header("Rows")]
         [SerializeField] private MenuRow[] mainRows;
         [SerializeField] private MenuRow[] challengeRows;
-        [SerializeField] private RectTransform challengeContent;
-        [SerializeField] private ScrollRect challengeScroll;
-        [SerializeField] private float challengeRowHeight = 68f;
         [SerializeField] private MenuRow backRow;
         [SerializeField] private MenuRow[] difficultyRows;
         [SerializeField] private MenuRow[] pauseRows;
@@ -54,13 +51,22 @@ namespace GuitarPlatformer
         private static readonly Color DifficultySelectedBg = new Color(0.3f, 0.95f, 1f, 0.95f);
         private static readonly Color DifficultySelectedText = new Color(0.01f, 0.03f, 0.08f, 1f);
         private static readonly Color DifficultyText = new Color(0.63f, 0.72f, 0.9f, 0.9f);
+        private static readonly Color Cyan = new Color(0.3f, 0.95f, 1f);
+        private static readonly Color Dim = new Color(0.63f, 0.72f, 0.9f, 0.82f);
+
+        private const float ChallengeRowHeight = 58f;
+        private const float ChallengeRowWidth = 780f;
+        private const float ChallengeListHeight = 300f;
 
         private readonly List<MenuRow> runtimeChallengeRows = new List<MenuRow>();
-        private bool challengeRowsReady;
+        private RectTransform challengeList;
+        private Font menuFont;
+        private bool challengeShellBuilt;
 
         private void Awake()
         {
             Instance = this;
+            RebuildChallengeScreen();
             HideAll();
         }
 
@@ -84,32 +90,7 @@ namespace GuitarPlatformer
             pauseRows = pauseMenuRows;
             challengeStatus = status;
             difficultyDescription = difficultyHelp;
-            InitializeChallengeRows();
             HideAll();
-        }
-
-        /// <summary>
-        /// Wires the scrollable challenge list. The scene provides a few seed rows; extra
-        /// custom-level rows are cloned from the first row on demand.
-        /// </summary>
-        public void ConfigureChallengeList(RectTransform content, ScrollRect scroll, float rowHeight)
-        {
-            challengeContent = content;
-            challengeScroll = scroll;
-            challengeRowHeight = Mathf.Max(24f, rowHeight);
-            InitializeChallengeRows();
-        }
-
-        private void InitializeChallengeRows()
-        {
-            runtimeChallengeRows.Clear();
-            challengeRowsReady = true;
-            if (challengeRows == null) return;
-            for (int i = 0; i < challengeRows.Length; i++)
-            {
-                if (challengeRows[i] != null)
-                    runtimeChallengeRows.Add(challengeRows[i]);
-            }
         }
 
         public void ShowMainMenu(int selected)
@@ -123,12 +104,13 @@ namespace GuitarPlatformer
             Difficulty difficulty, string status)
         {
             HideAll();
+            if (!challengeShellBuilt) RebuildChallengeScreen();
             SetGroup(challengeGroup, true);
 
             int count = labels != null ? labels.Length : 0;
-            if (!challengeRowsReady) InitializeChallengeRows();
             EnsureChallengeRows(count);
 
+            float offset = ScrollOffset(selected, count);
             for (int i = 0; i < runtimeChallengeRows.Count; i++)
             {
                 MenuRow row = runtimeChallengeRows[i];
@@ -137,87 +119,19 @@ namespace GuitarPlatformer
                     row.background.gameObject.SetActive(visible);
                 if (!visible) continue;
 
-                PositionChallengeRow(row, i);
+                PlaceChallengeRow(row, i, offset);
+                BindButton(row, MenuScreen.Challenge, i);
                 bool isLocked = locked != null && i < locked.Length && locked[i];
                 bool isCompleted = completed != null && i < completed.Length && completed[i];
                 string label = labels != null && i < labels.Length ? labels[i] : "";
-                SetChallengeRow(row, label, isLocked, isCompleted, selected == i);
+                SetRow(row, selected == i, isLocked, isCompleted, label);
             }
 
-            int backIdx = count;
-            SetRow(backRow, selected == backIdx, false, false, null);
-            ScrollChallengeSelection(selected, count);
+            BindButton(backRow, MenuScreen.Challenge, count);
+            SetRow(backRow, selected == count, false, false, "BACK");
             SetDifficultyRows(difficulty);
             if (challengeStatus != null) challengeStatus.text = status ?? "";
             if (difficultyDescription != null) difficultyDescription.text = DifficultyHelp(difficulty);
-        }
-
-        private void EnsureChallengeRows(int count)
-        {
-            if (count <= 0) return;
-
-            MenuRow source = runtimeChallengeRows.Count > 0 ? runtimeChallengeRows[0] : null;
-            while (runtimeChallengeRows.Count < count && source != null &&
-                   source.background != null && source.label != null)
-            {
-                Transform parent = challengeContent != null
-                    ? challengeContent
-                    : source.background.transform.parent;
-                GameObject clone = Instantiate(source.background.gameObject, parent);
-                clone.name = "ChallengeRow_" + runtimeChallengeRows.Count;
-                clone.SetActive(true);
-
-                var button = clone.GetComponent<MenuButton>();
-                if (button != null)
-                {
-                    button.screen = MenuScreen.Challenge;
-                    button.index = runtimeChallengeRows.Count;
-                }
-
-                var row = new MenuRow
-                {
-                    background = clone.GetComponent<Image>(),
-                    label = clone.GetComponentInChildren<Text>(true)
-                };
-                runtimeChallengeRows.Add(row);
-            }
-        }
-
-        private void PositionChallengeRow(MenuRow row, int index)
-        {
-            if (row == null || row.background == null) return;
-            RectTransform rect = row.background.rectTransform;
-            rect.anchorMin = new Vector2(0.5f, 1f);
-            rect.anchorMax = new Vector2(0.5f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.anchoredPosition = new Vector2(0f, -index * challengeRowHeight);
-            rect.sizeDelta = new Vector2(760f, challengeRowHeight - 8f);
-        }
-
-        private void ScrollChallengeSelection(int selected, int count)
-        {
-            if (challengeScroll == null || challengeContent == null || count <= 0) return;
-
-            float viewportHeight = challengeScroll.viewport != null
-                ? challengeScroll.viewport.rect.height
-                : 400f;
-            float contentHeight = Mathf.Max(viewportHeight, count * challengeRowHeight + 8f);
-            challengeContent.sizeDelta = new Vector2(challengeContent.sizeDelta.x, contentHeight);
-
-            float maxScroll = Mathf.Max(0f, contentHeight - viewportHeight);
-            if (maxScroll <= 0.001f)
-            {
-                challengeScroll.verticalNormalizedPosition = 1f;
-                return;
-            }
-
-            if (selected < 0 || selected >= count)
-                return;
-
-            float rowTop = selected * challengeRowHeight;
-            float offset = Mathf.Clamp(rowTop - (viewportHeight - challengeRowHeight) * 0.5f,
-                0f, maxScroll);
-            challengeScroll.verticalNormalizedPosition = 1f - offset / maxScroll;
         }
 
         public void ConfigureIntervals(CanvasGroup group, MenuRow[] rows, MenuRow back, Text summary)
@@ -252,16 +166,6 @@ namespace GuitarPlatformer
                     : "ACTIVE: " + summary;
         }
 
-        private void SetIntervalRow(MenuRow row, bool selected, bool active)
-        {
-            if (row == null) return;
-            Color background = selected ? SelectedBg : active ? CompletedBg : NormalBg;
-            Color foreground = selected ? SelectedText : active ? CompletedText : NormalText;
-
-            if (row.background != null) row.background.color = background;
-            if (row.label != null) row.label.color = foreground;
-        }
-
         public void ShowPause(int selected)
         {
             HideAll();
@@ -290,6 +194,108 @@ namespace GuitarPlatformer
             if (difficultyDescription != null) difficultyDescription.text = DifficultyHelp(difficulty);
         }
 
+        private void RebuildChallengeScreen()
+        {
+            if (challengeGroup == null) return;
+
+            menuFont = ResolveFont();
+            Transform root = challengeGroup.transform;
+            for (int i = root.childCount - 1; i >= 0; i--)
+            {
+                GameObject child = root.GetChild(i).gameObject;
+                child.name = child.name + "_Old";
+                child.SetActive(false);
+                Destroy(child);
+            }
+
+            runtimeChallengeRows.Clear();
+
+            Transform card = CreatePanel(root, "Card", new Vector2(0.5f, 0.5f), Vector2.zero,
+                new Vector2(1040f, 900f), new Color(0.018f, 0.012f, 0.05f, 0.97f), false);
+
+            CreateLabel(card, "ChallengeTitle", "CHALLENGES", 56, TextAnchor.UpperCenter,
+                new Vector2(0.5f, 1f), new Vector2(0f, -32f), new Vector2(960f, 68f), Cyan);
+            CreateLabel(card, "ChallengeSubtitle", "PICK A RIFF", 18, TextAnchor.UpperCenter,
+                new Vector2(0.5f, 1f), new Vector2(0f, -102f), new Vector2(960f, 24f), Dim);
+
+            Transform list = CreatePanel(card, "ChallengeList", new Vector2(0.5f, 0.5f),
+                new Vector2(0f, 70f), new Vector2(840f, ChallengeListHeight),
+                new Color(0.01f, 0.01f, 0.03f, 0.35f), true);
+            list.gameObject.AddComponent<RectMask2D>();
+            challengeList = list as RectTransform;
+
+            CreateLabel(card, "DifficultyTitle", "DIFFICULTY", 18, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 0.5f), new Vector2(0f, -175f), new Vector2(760f, 24f), Dim);
+
+            difficultyRows = new[]
+            {
+                CreateRow(card, "DifficultyRow_0", "EASY", new Vector2(-250f, -230f),
+                    new Vector2(220f, 52f), MenuScreen.Difficulty, 0, 22),
+                CreateRow(card, "DifficultyRow_1", "MEDIUM", new Vector2(0f, -230f),
+                    new Vector2(220f, 52f), MenuScreen.Difficulty, 1, 22),
+                CreateRow(card, "DifficultyRow_2", "HARD", new Vector2(250f, -230f),
+                    new Vector2(220f, 52f), MenuScreen.Difficulty, 2, 22)
+            };
+
+            challengeStatus = CreateLabel(card, "ChallengeStatus", "", 22, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 0.5f), new Vector2(0f, -290f), new Vector2(960f, 32f), Color.white);
+            difficultyDescription = CreateLabel(card, "DifficultyDescription", "", 16, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 0.5f), new Vector2(0f, -324f), new Vector2(980f, 28f), Dim);
+
+            backRow = CreateRow(card, "ChallengeBack", "BACK", new Vector2(0f, -380f),
+                new Vector2(280f, 52f), MenuScreen.Challenge, 0, 22);
+
+            CreateLabel(card, "ChallengeHint",
+                "W / S  ·  ENTER / A  ·  ESC / B  ·  MOUSE  ·  ← / → DIFFICULTY", 16,
+                TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 28f),
+                new Vector2(980f, 24f), Dim);
+
+            challengeShellBuilt = true;
+        }
+
+        private void EnsureChallengeRows(int count)
+        {
+            if (challengeList == null || count <= 0) return;
+
+            while (runtimeChallengeRows.Count < count)
+            {
+                int index = runtimeChallengeRows.Count;
+                runtimeChallengeRows.Add(CreateRow(challengeList, "ChallengeRow_" + index,
+                    "CHALLENGE " + (index + 1).ToString("00"), Vector2.zero,
+                    new Vector2(ChallengeRowWidth, ChallengeRowHeight - 8f),
+                    MenuScreen.Challenge, index, 22));
+            }
+        }
+
+        private static float ScrollOffset(int selected, int count)
+        {
+            float content = count * ChallengeRowHeight;
+            float max = Mathf.Max(0f, content - ChallengeListHeight);
+            if (max <= 0.001f || selected < 0 || selected >= count) return 0f;
+            float selectedTop = selected * ChallengeRowHeight;
+            return Mathf.Clamp(selectedTop - (ChallengeListHeight - ChallengeRowHeight) * 0.5f, 0f, max);
+        }
+
+        private static void PlaceChallengeRow(MenuRow row, int index, float offset)
+        {
+            if (row == null || row.background == null) return;
+            RectTransform rect = row.background.rectTransform;
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.sizeDelta = new Vector2(ChallengeRowWidth, ChallengeRowHeight - 8f);
+            rect.anchoredPosition = new Vector2(0f, -index * ChallengeRowHeight + offset);
+        }
+
+        private static void BindButton(MenuRow row, MenuScreen screen, int index)
+        {
+            if (row == null || row.background == null) return;
+            var button = row.background.GetComponent<MenuButton>();
+            if (button == null) return;
+            button.screen = screen;
+            button.index = index;
+        }
+
         private void SetRows(MenuRow[] rows, int selected)
         {
             if (rows == null) return;
@@ -297,12 +303,16 @@ namespace GuitarPlatformer
                 SetRow(rows[i], selected == i, false, false, null);
         }
 
-        private void SetChallengeRow(MenuRow row, string label, bool locked, bool completed, bool selected)
+        private void SetIntervalRow(MenuRow row, bool selected, bool active)
         {
-            SetRow(row, selected, locked, completed, label);
+            if (row == null) return;
+            Color background = selected ? SelectedBg : active ? CompletedBg : NormalBg;
+            Color foreground = selected ? SelectedText : active ? CompletedText : NormalText;
+            if (row.background != null) row.background.color = background;
+            if (row.label != null) row.label.color = foreground;
         }
 
-        private void SetRow(MenuRow row, bool selected, bool locked, bool completed, string label)
+        private static void SetRow(MenuRow row, bool selected, bool locked, bool completed, string label)
         {
             if (row == null) return;
 
@@ -351,6 +361,92 @@ namespace GuitarPlatformer
             group.alpha = visible ? 1f : 0f;
             group.blocksRaycasts = visible;
             group.interactable = visible;
+        }
+
+        private Font ResolveFont()
+        {
+            if (mainRows != null)
+            {
+                for (int i = 0; i < mainRows.Length; i++)
+                {
+                    if (mainRows[i] != null && mainRows[i].label != null && mainRows[i].label.font != null)
+                        return mainRows[i].label.font;
+                }
+            }
+
+            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (font == null) font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            return font;
+        }
+
+        private MenuRow CreateRow(Transform parent, string name, string label, Vector2 position,
+            Vector2 size, MenuScreen screen, int index, int fontSize)
+        {
+            Transform panel = CreatePanel(parent, name, new Vector2(0.5f, 0.5f), position, size, NormalBg, true);
+            var button = panel.gameObject.AddComponent<MenuButton>();
+            button.screen = screen;
+            button.index = index;
+            Text text = CreateLabel(panel, "Label", label, fontSize, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 0.5f), Vector2.zero, size, NormalText);
+            return new MenuRow
+            {
+                background = panel.GetComponent<Image>(),
+                label = text
+            };
+        }
+
+        private static Transform CreatePanel(Transform parent, string name, Vector2 anchor, Vector2 position,
+            Vector2 size, Color color, bool raycast)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = anchor;
+            rect.anchorMax = anchor;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            var image = go.AddComponent<Image>();
+            image.color = color;
+            image.raycastTarget = raycast;
+            return rect;
+        }
+
+        private Text CreateLabel(Transform parent, string name, string content, int fontSize,
+            TextAnchor alignment, Vector2 anchor, Vector2 position, Vector2 size, Color color)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = anchor;
+            rect.anchorMax = anchor;
+            rect.pivot = PivotFor(alignment);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            var text = go.AddComponent<Text>();
+            text.font = menuFont;
+            text.text = content;
+            text.fontSize = fontSize;
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = alignment;
+            text.color = color;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.raycastTarget = false;
+            var shadow = go.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.65f);
+            shadow.effectDistance = new Vector2(2f, -2f);
+            return text;
+        }
+
+        private static Vector2 PivotFor(TextAnchor alignment)
+        {
+            switch (alignment)
+            {
+                case TextAnchor.UpperCenter: return new Vector2(0.5f, 1f);
+                case TextAnchor.LowerCenter: return new Vector2(0.5f, 0f);
+                default: return new Vector2(0.5f, 0.5f);
+            }
         }
     }
 }

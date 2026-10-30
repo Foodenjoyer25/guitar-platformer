@@ -34,7 +34,7 @@ namespace GuitarPlatformer
         public const int SimpleIntervalCount = 13;
 
         // Simple intervals first, then the compound intervals. Keys avoid movement,
-        // jump, sprint, boost, camera, respawn, mute and menu bindings.
+        // jump, sprint, retrigger, camera, respawn, mute and menu bindings.
         public static readonly ChordInterval[] Intervals =
         {
             new ChordInterval(Key.Z, 1, "m2", "MINOR 2ND"),

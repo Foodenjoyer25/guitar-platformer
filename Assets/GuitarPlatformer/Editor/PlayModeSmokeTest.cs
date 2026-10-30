@@ -13,7 +13,7 @@ namespace GuitarPlatformer.EditorTools
     /// Batch-mode smoke test: opens the generated scene, enters play mode, verifies the
     /// fretboard-only scene, mirrored string layout, all six synth voices, landing and
     /// walk-on note triggers, equivalent-note ghosts, five camera views, chord toggles,
-    /// triple jump without a flip, boost and respawn behaviour.
+    /// triple jump without a flip, tile retrigger and respawn behaviour.
     /// </summary>
     public static class PlayModeSmokeTest
     {
@@ -177,6 +177,9 @@ namespace GuitarPlatformer.EditorTools
                     levels.HoverMenu(MenuScreen.Challenge, 1);
                     Require(levels.ChallengeMenuSelection == 1,
                         "mouse hover moves the challenge selection");
+                    MenuButton backButton = GameObject.Find("ChallengeBack")?.GetComponent<MenuButton>();
+                    Require(backButton != null && backButton.index == RiffLibrary.CreateLevels().Length,
+                        "BACK sits after the last challenge (index " + backButton?.index + ")");
                     levels.ActivateMenu(MenuScreen.Challenge, RiffLibrary.CreateLevels().Length);
                     Require(levels.State == LevelState.MainMenu, "back returns to the main menu");
 
@@ -559,13 +562,13 @@ namespace GuitarPlatformer.EditorTools
                     Text viewLabel = GameObject.Find("ViewLabel")?.GetComponent<Text>();
                     Require(viewLabel != null && viewLabel.text.Contains("GUITARIST"), "HUD view label updated");
 
-                    // Boost starts, grants the 1.8x multiplier and refreshes with no cooldown.
-                    Require(player.TryStartBoost(true), "boost starts");
-                    Require(player.BoostActive, "boost active");
-                    Require(Mathf.Abs(player.BoostMultiplier - 1.8f) < 0.01f,
-                        "boost multiplier is 1.8x (" + player.BoostMultiplier.ToString("F2") + ")");
-                    Require(player.TryStartBoost(true), "boost refreshes while active");
-                    Require(player.BoostActive, "boost stays active after the refresh");
+                    // Ctrl restrikes the pad underfoot without leaving it.
+                    Require(player.TryRetriggerTile(), "retrigger plays the pad again");
+                    Require(countText.text == "2",
+                        "retrigger added exactly one note (was " + countText.text + ")");
+                    Require(player.TryRetriggerTile(), "retrigger works again on the same pad");
+                    Require(countText.text == "3",
+                        "second retrigger added one more note (was " + countText.text + ")");
 
                     // Teleport one fret forward without leaving the ground: walk-on trigger.
                     NoteTile walk = tiles.First(t => !t.isOpen && t.fret == 6 && t.stringIndex == 5);
@@ -594,12 +597,12 @@ namespace GuitarPlatformer.EditorTools
                     Require(player.IsGrounded, "player still grounded after walking to the next pad");
                     Require(noteText != null && noteText.text == walk.NoteName,
                         "walk-on triggered " + walk.NoteName + " (was " + noteText?.text + ")");
-                    Require(countText != null && countText.text == "2",
+                    Require(countText != null && countText.text == "4",
                         "walk-on added exactly one note (was " + countText?.text + ")");
 
-                    Require(!player.BoostActive, "boost burst ended");
-                    Require(player.TryStartBoost(true), "boost has no cooldown");
-                    Require(player.BoostActive, "boost restarts immediately after the burst");
+                    Require(player.TryRetriggerTile(), "retrigger works after walking onto a pad");
+                    Require(countText.text == "5",
+                        "walk-on retrigger added one note (was " + countText?.text + ")");
 
                     // Fall off the edge; respawn should return to the walk-on checkpoint without replaying it.
                     CharacterController controller = player.GetComponent<CharacterController>();
@@ -627,7 +630,7 @@ namespace GuitarPlatformer.EditorTools
                         "respawn height on pad (" + position.y.ToString("F2") + ")");
 
                     Text countText = GameObject.Find("Count")?.GetComponent<Text>();
-                    Require(countText != null && countText.text == "2",
+                    Require(countText != null && countText.text == "5",
                         "respawn did not retrigger a note (count " + countText?.text + ")");
 
                     // Land on the bare board beside the pads; no note should fire.
@@ -649,7 +652,7 @@ namespace GuitarPlatformer.EditorTools
                     PlayerController player = Object.FindAnyObjectByType<PlayerController>();
                     Text countText = GameObject.Find("Count")?.GetComponent<Text>();
                     Require(player.IsGrounded, "player landed on bare board");
-                    Require(countText != null && countText.text == "2",
+                    Require(countText != null && countText.text == "5",
                         "bare board landing did not play a note (count " + countText?.text + ")");
 
                     ChordManager chords = Object.FindAnyObjectByType<ChordManager>();
@@ -723,7 +726,7 @@ namespace GuitarPlatformer.EditorTools
                     Require(audio != null && audio.ActiveVoiceCount >= 3,
                         "main note + two intervals sound together (" +
                         (audio != null ? audio.ActiveVoiceCount : 0) + " voices)");
-                    Require(countText.text == "3",
+                    Require(countText.text == "6",
                         "chord did not add extra note counts (count " + countText.text + ")");
                     int ghostsAfter = ghosts != null ? ghosts.ActiveGhostCount : 0;
                     Require(ghostsAfter == 11,
@@ -825,7 +828,7 @@ namespace GuitarPlatformer.EditorTools
                     Text countText = GameObject.Find("Count")?.GetComponent<Text>();
                     int count = int.Parse(countText.text);
                     Require(player.IsGrounded, "player grounded on the neighbouring pad");
-                    Require(count == 3,
+                    Require(count == 6,
                         "landing-only ignores walking onto a pad (count " + count + ")");
 
                     // Jump straight up and land on the same pad; this must trigger.
@@ -843,7 +846,7 @@ namespace GuitarPlatformer.EditorTools
                     Text countText = GameObject.Find("Count")?.GetComponent<Text>();
                     int count = int.Parse(countText.text);
                     Require(player.IsGrounded, "player landed after the landing-only jump");
-                    Require(count == 4, "landing-only triggers on a real landing (count " + count + ")");
+                    Require(count == 7, "landing-only triggers on a real landing (count " + count + ")");
 
                     stage = 90;
                     stageTime = EditorApplication.timeSinceStartup;
@@ -878,7 +881,7 @@ namespace GuitarPlatformer.EditorTools
                     Text countText = GameObject.Find("Count")?.GetComponent<Text>();
                     int count = int.Parse(countText.text);
                     Require(player.IsGrounded, "player landed after the non-jump fall");
-                    Require(count == 4,
+                    Require(count == 7,
                         "non-jump fall does not trigger a note (count " + count + ")");
                     Require(levels.CurrentStepIndex == 0,
                         "non-jump fall leaves progress untouched (" + levels.CurrentStepIndex + ")");
@@ -1061,7 +1064,7 @@ namespace GuitarPlatformer.EditorTools
                     Require(levels.TargetTile != null && levels.TargetTile.fret == 1,
                         "fall keeps the current target");
                     Require(levels.MistakeCount == 1, "fall does not add a mistake");
-                    Require(countText != null && countText.text == "6",
+                    Require(countText != null && countText.text == "9",
                         "fall respawn does not retrigger a note (count " + countText?.text + ")");
 
                     stage = 13;
@@ -1276,15 +1279,15 @@ namespace GuitarPlatformer.EditorTools
                     Require(levels.CurrentLevel.Artist == "The White Stripes",
                         "challenge 2 artist is The White Stripes");
                     Require(levels.CurrentLevel.Bpm == 124, "challenge 2 runs at 124 BPM");
-                    Require(levels.StepCount == 14, "Seven Nation Army has 14 steps");
+                    Require(levels.StepCount == 16, "Seven Nation Army has 16 steps");
                     RiffPerformanceNote[] sevenNotes = RiffPerformance.Build(levels.CurrentLevel);
-                    Require(sevenNotes.Length == 14, "Seven Nation Army performance has 14 events");
+                    Require(sevenNotes.Length == 16, "Seven Nation Army performance has 16 events");
                     Require(Mathf.Abs(sevenNotes[0].StartBeat) < 0.001f,
                         "Seven Nation Army performance starts on beat 1");
-                    Require(Mathf.Abs(sevenNotes[13].StartBeat - 14f) < 0.001f,
+                    Require(Mathf.Abs(sevenNotes[15].StartBeat - 14f) < 0.001f,
                         "Seven Nation Army performance lands the last B on beat 14 (" +
-                        sevenNotes[13].StartBeat.ToString("F2") + ")");
-                    Require(levels.ReplayEventCount == 14, "Seven Nation Army replay reports 14 events");
+                        sevenNotes[15].StartBeat.ToString("F2") + ")");
+                    Require(levels.ReplayEventCount == 16, "Seven Nation Army replay reports 16 events");
                     Require(levels.CurrentStepIndex == 0, "challenge 2 starts at step 1");
                     Require(levels.Lives == LevelManager.StartingLives, "challenge 2 starts with three lives");
                     Require(!player.LandingOnlyNotes, "challenge 2 keeps walk-on notes");
@@ -1292,10 +1295,10 @@ namespace GuitarPlatformer.EditorTools
                     Require(levels.TargetTile != null && levels.TargetTile.stringIndex == 1 &&
                             levels.TargetTile.fret == 7,
                         "first Seven Nation Army target is A fret 7 (E3)");
-                    NoteTile start = tiles.First(t => t.stringIndex == 1 && t.isOpen);
+                    NoteTile start = tiles.First(t => t.stringIndex == 1 && t.fret == 3);
                     Require(Mathf.Abs(player.transform.position.x - start.transform.position.x) < 0.25f &&
                             Mathf.Abs(player.transform.position.z - start.transform.position.z) < 0.25f,
-                        "challenge 2 teleports to the A open start pad");
+                        "challenge 2 teleports to the A fret 3 start pad");
                     CanvasGroup reveal = GameObject.Find("Reveal")?.GetComponent<CanvasGroup>();
                     Require(reveal != null && reveal.alpha < 0.01f, "reveal card hides for challenge 2");
                     Text header = GameObject.Find("LevelHeader")?.GetComponent<Text>();
@@ -1860,7 +1863,7 @@ namespace GuitarPlatformer.EditorTools
                     Debug.Log("SMOKE PASS: fretboard-only scene, mirrored layout, six audible strings, " +
                               "crunchy chord-level amp, palm-muted voice, landing + walk-on notes, ghosts, " +
                               "five camera views, chord toggles, triple jump without a flip, " +
-                              "boost refresh without cooldown, global palm/all-string mutes, respawn, " +
+                              "Ctrl tile retrigger, global palm/all-string mutes, respawn, " +
                               "free-play landing-only toggle, main menu, all challenges unlocked, hidden names, " +
                               "easy/medium/hard rules, three lives, out-of-lives restart, pause overlay, " +
                               "sample-accurate replays, same-pitch notes on other strings, mistake teleport, " +
