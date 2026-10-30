@@ -220,8 +220,9 @@ namespace GuitarPlatformer
 
         /// <summary>
         /// Renders an entire riff replay into one clip. Every event is placed on the
-        /// authored beat grid with sample rounding, then the mix gets a final amp bus
-        /// and soft limiter. This removes the frame-jitter of the old per-note coroutine.
+        /// authored beat grid with sample rounding. A new note fades out whatever is
+        /// still ringing so attacks stay monophonic, matching live play. The mix then
+        /// gets a final amp bus and soft limiter.
         /// </summary>
         public static float[] RenderPerformance(RiffLevel level)
         {
@@ -234,6 +235,7 @@ namespace GuitarPlatformer
             int count = Mathf.Max(1, Mathf.RoundToInt(
                 SampleRate * (totalBeats * secondsPerBeat + PerformanceTailSeconds)));
             float[] mix = new float[count];
+            int fadeSamples = Mathf.Max(1, SampleRate / 200);
 
             for (int i = 0; i < notes.Length; i++)
             {
@@ -241,6 +243,7 @@ namespace GuitarPlatformer
                 int offset = Mathf.RoundToInt(SampleRate * note.StartBeat * secondsPerBeat);
                 if (offset >= mix.Length) continue;
 
+                CutOffAt(mix, offset, fadeSamples);
                 float duration = Mathf.Max(0.08f, note.LengthBeats * secondsPerBeat + 0.45f);
                 float[] chord = GenerateChord(note.Midi, note.StringIndex, note.ChordIntervals,
                     note.Muted, duration);
@@ -268,6 +271,16 @@ namespace GuitarPlatformer
             int count = Mathf.Min(source.Length, target.Length - offset);
             for (int i = 0; i < count; i++)
                 target[offset + i] += source[i] * gain;
+        }
+
+        private static void CutOffAt(float[] mix, int offset, int fadeSamples)
+        {
+            int fadeStart = Mathf.Max(0, offset - fadeSamples);
+            int fadeLength = offset - fadeStart;
+            for (int i = 0; i < fadeLength; i++)
+                mix[fadeStart + i] *= 1f - i / (float)fadeLength;
+            for (int i = offset; i < mix.Length; i++)
+                mix[i] = 0f;
         }
 
         private static void ApplyAmp(float[] data, int midi, int stringIndex, int sampleRate)

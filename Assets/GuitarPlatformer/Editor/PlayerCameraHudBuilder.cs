@@ -205,12 +205,15 @@ namespace GuitarPlatformer.EditorTools
                 "V / Y   camera view      Backspace / Select   respawn\n" +
                 "L   free play: walk-on / landing only\n" +
                 "M   palm mute      N   mute all strings\n" +
-                "I   interval selection menu\n" +
+                "TAB / PAD WEST / I   interval selection menu\n" +
                 "Esc / Start   menu      Enter / A   confirm\n" +
                 "\n" +
                 "CHORDS  F P5   J P5\u2193   E m3   R M3\n" +
                 "        T P4   Y M2   C m6   G M6\n" +
-                "        H m7   Z m2   X TT   B M7   Q 8va", 17,
+                "        H m7   Z m2   X TT   B M7   Q 8va\n" +
+                "        1 m9   2 M9   3 m10  4 M10  5 P11\n" +
+                "        6 A11  7 P12  8 m13  9 M13  0 m14\n" +
+                "        - M14  = P15", 17,
                 TextAnchor.UpperLeft, new Vector2(0f, 1f), new Vector2(50f, -126f), new Vector2(680f, 370f),
                 new Color(0.78f, 0.84f, 1f, 0.88f), a.Font);
             controls.lineSpacing = 1.12f;
@@ -402,11 +405,14 @@ namespace GuitarPlatformer.EditorTools
                 CreateMenuRow(mainCard, "MainRow_0", "FREE PLAY", new Vector2(0f, 34f),
                     new Vector2(520f, 78f), MenuScreen.Main, 0, font),
                 CreateMenuRow(mainCard, "MainRow_1", "CHALLENGES", new Vector2(0f, -58f),
-                    new Vector2(520f, 78f), MenuScreen.Main, 1, font)
+                    new Vector2(520f, 78f), MenuScreen.Main, 1, font),
+                CreateMenuRow(mainCard, "MainRow_2", "INTERVAL SELECTION", new Vector2(0f, -150f),
+                    new Vector2(520f, 78f), MenuScreen.Main, 2, font)
             };
             BuilderUtil.CreateText(mainCard, "MenuHint",
-                "W / S  ·  LEFT STICK  ·  ENTER / A  ·  MOUSE", 18, TextAnchor.LowerCenter,
-                new Vector2(0.5f, 0f), new Vector2(0f, 54f), new Vector2(800f, 26f), dim, font);
+                "W / S  ·  LEFT STICK  ·  ENTER / A  ·  MOUSE  ·  TAB / WEST  INTERVALS", 18,
+                TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 54f), new Vector2(800f, 26f),
+                dim, font);
 
             // Challenge select.
             Transform challengeCard = CreateMenuCard(challengeRoot, new Vector2(1080f, 880f),
@@ -419,11 +425,11 @@ namespace GuitarPlatformer.EditorTools
             {
                 CreateMenuRow(challengeCard, "ChallengeRow_0", "CHALLENGE 01  ·  ???", new Vector2(0f, 210f),
                     new Vector2(760f, 60f), MenuScreen.Challenge, 0, font, 23),
-                CreateMenuRow(challengeCard, "ChallengeRow_1", "CHALLENGE 02  ·  LOCKED", new Vector2(0f, 142f),
+                CreateMenuRow(challengeCard, "ChallengeRow_1", "CHALLENGE 02  ·  ???", new Vector2(0f, 142f),
                     new Vector2(760f, 60f), MenuScreen.Challenge, 1, font, 23),
-                CreateMenuRow(challengeCard, "ChallengeRow_2", "CHALLENGE 03  ·  LOCKED", new Vector2(0f, 74f),
+                CreateMenuRow(challengeCard, "ChallengeRow_2", "CHALLENGE 03  ·  ???", new Vector2(0f, 74f),
                     new Vector2(760f, 60f), MenuScreen.Challenge, 2, font, 23),
-                CreateMenuRow(challengeCard, "ChallengeRow_3", "CHALLENGE 04  ·  LOCKED", new Vector2(0f, 6f),
+                CreateMenuRow(challengeCard, "ChallengeRow_3", "CHALLENGE 04  ·  ???", new Vector2(0f, 6f),
                     new Vector2(760f, 60f), MenuScreen.Challenge, 3, font, 23)
             };
 
@@ -462,15 +468,17 @@ namespace GuitarPlatformer.EditorTools
                 FontStyle.Bold);
             MenuView.MenuRow[] pauseRows =
             {
-                CreateMenuRow(pauseCard, "PauseRow_0", "RESUME", new Vector2(0f, 62f),
+                CreateMenuRow(pauseCard, "PauseRow_0", "RESUME", new Vector2(0f, 80f),
                     new Vector2(420f, 64f), MenuScreen.Pause, 0, font, 24),
-                CreateMenuRow(pauseCard, "PauseRow_1", "RESTART CHALLENGE", new Vector2(0f, -22f),
+                CreateMenuRow(pauseCard, "PauseRow_1", "RESTART CHALLENGE", new Vector2(0f, 0f),
                     new Vector2(420f, 64f), MenuScreen.Pause, 1, font, 24),
-                CreateMenuRow(pauseCard, "PauseRow_2", "CHALLENGE MENU", new Vector2(0f, -106f),
-                    new Vector2(420f, 64f), MenuScreen.Pause, 2, font, 24)
+                CreateMenuRow(pauseCard, "PauseRow_2", "CHALLENGE MENU", new Vector2(0f, -80f),
+                    new Vector2(420f, 64f), MenuScreen.Pause, 2, font, 24),
+                CreateMenuRow(pauseCard, "PauseRow_3", "INTERVAL SELECTION", new Vector2(0f, -160f),
+                    new Vector2(420f, 64f), MenuScreen.Pause, 3, font, 24)
             };
-            BuilderUtil.CreateText(pauseCard, "PauseHint", "ESC / START  ·  RESUME", 17,
-                TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 42f), new Vector2(600f, 24f),
+            BuilderUtil.CreateText(pauseCard, "PauseHint", "ESC / START  ·  RESUME  ·  TAB / WEST  INTERVALS", 17,
+                TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 28f), new Vector2(600f, 24f),
                 dim, font);
 
             // Out of lives.
@@ -488,60 +496,49 @@ namespace GuitarPlatformer.EditorTools
             // Interval Selection Screen.
             CanvasGroup intervalGroup = CreateMenuScreen(canvas, "IntervalMenu",
                 new Color(0.005f, 0.004f, 0.015f, 0.92f), out Transform intervalRoot);
-            Transform intervalCard = CreateMenuCard(intervalRoot, new Vector2(1160f, 920f),
+            Transform intervalCard = CreateMenuCard(intervalRoot, new Vector2(1160f, 980f),
                 new Color(0.018f, 0.012f, 0.05f, 0.98f));
             BuilderUtil.CreateText(intervalCard, "IntervalTitle", "INTERVAL SELECTION", 50, TextAnchor.UpperCenter,
                 new Vector2(0.5f, 1f), new Vector2(0f, -30f), new Vector2(1000f, 60f), cyan, font, FontStyle.Bold);
             BuilderUtil.CreateText(intervalCard, "IntervalSubtitle",
-                "MUSIC THEORY CHORD VOICINGS  ·  TOGGLE HARMONY VOICES", 18, TextAnchor.UpperCenter,
+                "ALL SIMPLE + COMPOUND INTERVALS  ·  BUILD CHORDS FROM THEORY", 18, TextAnchor.UpperCenter,
                 new Vector2(0.5f, 1f), new Vector2(0f, -90f), new Vector2(1000f, 26f), dim, font, FontStyle.Bold);
+
+            BuilderUtil.CreateText(intervalCard, "SimpleHeader", "SIMPLE INTERVALS", 18, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 0.5f), new Vector2(-280f, 340f), new Vector2(480f, 24f), dim, font, FontStyle.Bold);
+            BuilderUtil.CreateText(intervalCard, "CompoundHeader", "COMPOUND INTERVALS", 18, TextAnchor.MiddleCenter,
+                new Vector2(0.5f, 0.5f), new Vector2(280f, 340f), new Vector2(480f, 24f), dim, font, FontStyle.Bold);
 
             var intervals = ChordManager.Intervals;
             var intervalRows = new MenuView.MenuRow[intervals.Length];
             for (int i = 0; i < intervals.Length; i++)
             {
-                int col = i < 7 ? 0 : 1;
-                int row = i < 7 ? i : (i - 7);
-                float x = col == 0 ? -280f : 280f;
-                float y = 220f - row * 58f;
+                bool compound = i >= ChordManager.SimpleIntervalCount;
+                int row = compound ? i - ChordManager.SimpleIntervalCount : i;
+                float x = compound ? 280f : -280f;
+                float y = 300f - row * 46f;
                 var itv = intervals[i];
-                string label = itv.label + "  ·  " + itv.fullName + "  [" + itv.key + "]";
+                string semitone = itv.semitones > 0 ? "+" + itv.semitones : itv.semitones.ToString();
+                string label = itv.label + "  ·  " + itv.fullName + "  [" + ChordManager.KeyLabel(itv.key) + "]  " + semitone;
                 intervalRows[i] = CreateMenuRow(intervalCard, "IntervalRow_" + i, label,
-                    new Vector2(x, y), new Vector2(530f, 50f), MenuScreen.Interval, i, font, 19);
+                    new Vector2(x, y), new Vector2(480f, 40f), MenuScreen.Interval, i, font, 17);
             }
 
-            BuilderUtil.CreateText(intervalCard, "PresetTitle", "THEORY PRESETS", 18, TextAnchor.MiddleCenter,
-                new Vector2(0.5f, 0.5f), new Vector2(0f, -204f), new Vector2(1000f, 24f), dim, font, FontStyle.Bold);
-
-            MenuView.MenuRow[] presetRows =
-            {
-                CreateMenuRow(intervalCard, "PresetRow_0", "POWER (P5)", new Vector2(-410f, -244f),
-                    new Vector2(190f, 44f), MenuScreen.Preset, 0, font, 17),
-                CreateMenuRow(intervalCard, "PresetRow_1", "MAJOR (M3+P5)", new Vector2(-205f, -244f),
-                    new Vector2(190f, 44f), MenuScreen.Preset, 1, font, 17),
-                CreateMenuRow(intervalCard, "PresetRow_2", "MINOR (m3+P5)", new Vector2(0f, -244f),
-                    new Vector2(190f, 44f), MenuScreen.Preset, 2, font, 17),
-                CreateMenuRow(intervalCard, "PresetRow_3", "SUS4 (P4+P5)", new Vector2(205f, -244f),
-                    new Vector2(190f, 44f), MenuScreen.Preset, 3, font, 17),
-                CreateMenuRow(intervalCard, "PresetRow_4", "CLEAR", new Vector2(410f, -244f),
-                    new Vector2(190f, 44f), MenuScreen.Preset, 4, font, 17)
-            };
-
             Text intervalSummary = BuilderUtil.CreateText(intervalCard, "IntervalSummary",
-                "ACTIVE: NONE", 20, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f),
-                new Vector2(0f, -292f), new Vector2(1000f, 28f), Color.white, font, FontStyle.Bold);
+                "ACTIVE: NONE  ·  SINGLE NOTES", 20, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -310f), new Vector2(1000f, 28f), Color.white, font, FontStyle.Bold);
 
-            MenuView.MenuRow intervalBack = CreateMenuRow(intervalCard, "IntervalClose", "CLOSE (I / ESC)",
-                new Vector2(0f, -345f), new Vector2(320f, 50f), MenuScreen.Interval, intervals.Length + presetRows.Length,
+            MenuView.MenuRow intervalBack = CreateMenuRow(intervalCard, "IntervalClose", "CLOSE (TAB / I / ESC)",
+                new Vector2(0f, -380f), new Vector2(360f, 50f), MenuScreen.Interval, intervals.Length,
                 font, 20);
 
             BuilderUtil.CreateText(intervalCard, "IntervalHint",
-                "W / S  ·  A / D  ·  ENTER / CLICK TO TOGGLE  ·  I / ESC  CLOSE", 16,
+                "W/S  ·  A/D  ·  ENTER / CLICK TO TOGGLE  ·  TAB / WEST / I / ESC  CLOSE", 16,
                 TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(1000f, 22f), dim, font);
 
             menu.Configure(mainGroup, challengeGroup, pauseGroup, outGroup, mainRows, challengeRows,
                 backRow, difficultyRows, pauseRows, challengeStatus, difficultyDescription);
-            menu.ConfigureIntervals(intervalGroup, intervalRows, presetRows, intervalBack, intervalSummary);
+            menu.ConfigureIntervals(intervalGroup, intervalRows, intervalBack, intervalSummary);
             return menu;
         }
 

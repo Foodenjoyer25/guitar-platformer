@@ -32,7 +32,6 @@ namespace GuitarPlatformer
         [SerializeField] private MenuRow[] difficultyRows;
         [SerializeField] private MenuRow[] pauseRows;
         [SerializeField] private MenuRow[] intervalRows;
-        [SerializeField] private MenuRow[] presetRows;
         [SerializeField] private MenuRow intervalBackRow;
 
         [Header("Challenge text")]
@@ -112,12 +111,10 @@ namespace GuitarPlatformer
             if (difficultyDescription != null) difficultyDescription.text = DifficultyHelp(difficulty);
         }
 
-        public void ConfigureIntervals(CanvasGroup group, MenuRow[] rows, MenuRow[] presets,
-            MenuRow back, Text summary)
+        public void ConfigureIntervals(CanvasGroup group, MenuRow[] rows, MenuRow back, Text summary)
         {
             intervalGroup = group;
             intervalRows = rows;
-            presetRows = presets;
             intervalBackRow = back;
             intervalChordSummary = summary;
         }
@@ -137,21 +134,13 @@ namespace GuitarPlatformer
                 }
             }
 
-            int presetOffset = intervalRows != null ? intervalRows.Length : 0;
-            if (presetRows != null)
-            {
-                for (int i = 0; i < presetRows.Length; i++)
-                {
-                    bool isSelected = selected == presetOffset + i;
-                    SetRow(presetRows[i], isSelected, false, false, null);
-                }
-            }
-
-            int backIndex = presetOffset + (presetRows != null ? presetRows.Length : 0);
+            int backIndex = intervalRows != null ? intervalRows.Length : 0;
             SetRow(intervalBackRow, selected == backIndex, false, false, null);
 
             if (intervalChordSummary != null)
-                intervalChordSummary.text = string.IsNullOrEmpty(summary) ? "ACTIVE: NONE (SINGLE NOTES)" : "ACTIVE: " + summary;
+                intervalChordSummary.text = string.IsNullOrEmpty(summary)
+                    ? "ACTIVE: NONE  \u00b7  SINGLE NOTES"
+                    : "ACTIVE: " + summary;
         }
 
         private void SetIntervalRow(MenuRow row, bool selected, bool active)

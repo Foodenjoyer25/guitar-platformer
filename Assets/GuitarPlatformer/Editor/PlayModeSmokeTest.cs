@@ -125,26 +125,30 @@ namespace GuitarPlatformer.EditorTools
                     CanvasGroup levelGroup = GameObject.Find("LevelPanel")?.GetComponent<CanvasGroup>();
                     Text mainRow0 = GameObject.Find("MainRow_0")?.GetComponentInChildren<Text>();
                     Text mainRow1 = GameObject.Find("MainRow_1")?.GetComponentInChildren<Text>();
+                    Text mainRow2 = GameObject.Find("MainRow_2")?.GetComponentInChildren<Text>();
                     Require(mainGroup != null && mainGroup.alpha > 0.99f, "main menu is visible");
                     Require(challengeGroup != null && challengeGroup.alpha < 0.01f,
                         "challenge menu starts hidden");
                     Require(levelGroup != null && levelGroup.alpha < 0.01f, "HUD level panel hides in menus");
                     Require(mainRow0 != null && mainRow0.text == "FREE PLAY", "main menu lists free play");
                     Require(mainRow1 != null && mainRow1.text == "CHALLENGES", "main menu lists challenges");
-                    Require(GameObject.Find("MainRow_0")?.GetComponent<MenuButton>() != null,
+                    Require(mainRow2 != null && mainRow2.text == "INTERVAL SELECTION",
+                        "main menu lists interval selection (" + mainRow2?.text + ")");
+                    Require(GameObject.Find("MainRow_0")?.GetComponent<MenuButton>() != null &&
+                            GameObject.Find("MainRow_2")?.GetComponent<MenuButton>() != null,
                         "main menu rows accept mouse input");
                     Require(GameObject.Find("Reveal")?.transform.Find("Dim")?.GetComponent<MenuButton>() != null,
                         "reveal card accepts mouse input");
 
-                    // Challenge select starts with only the first challenge unlocked and unnamed.
+                    // Challenge select starts with every challenge unlocked and unnamed.
                     levels.HoverMenu(MenuScreen.Main, 1);
                     Require(levels.MainMenuSelection == 1, "mouse hover moves the menu selection");
                     levels.ActivateMenu(MenuScreen.Main, 1);
                     Require(levels.State == LevelState.ChallengeSelect, "challenges open from the menu");
                     Require(levels.IsChallengeUnlocked(0), "challenge 1 is unlocked");
-                    Require(!levels.IsChallengeUnlocked(1), "challenge 2 is locked");
-                    Require(!levels.IsChallengeUnlocked(2), "challenge 3 is locked");
-                    Require(!levels.IsChallengeUnlocked(3), "challenge 4 is locked");
+                    Require(levels.IsChallengeUnlocked(1), "challenge 2 is unlocked");
+                    Require(levels.IsChallengeUnlocked(2), "challenge 3 is unlocked");
+                    Require(levels.IsChallengeUnlocked(3), "challenge 4 is unlocked");
                     Text challengeRow0 = GameObject.Find("ChallengeRow_0")?.GetComponentInChildren<Text>();
                     Text challengeRow1 = GameObject.Find("ChallengeRow_1")?.GetComponentInChildren<Text>();
                     Text challengeRow2 = GameObject.Find("ChallengeRow_2")?.GetComponentInChildren<Text>();
@@ -152,20 +156,36 @@ namespace GuitarPlatformer.EditorTools
                     Require(challengeRow0 != null && challengeRow0.text.Contains("???") &&
                             !challengeRow0.text.Contains("SMOKE ON THE WATER"),
                         "challenge 1 name stays hidden (" + challengeRow0?.text + ")");
-                    Require(challengeRow1 != null && challengeRow1.text.Contains("LOCKED"),
-                        "challenge 2 shows locked (" + challengeRow1?.text + ")");
-                    Require(challengeRow2 != null && challengeRow2.text.Contains("LOCKED"),
-                        "challenge 3 shows locked (" + challengeRow2?.text + ")");
-                    Require(challengeRow3 != null && challengeRow3.text.Contains("LOCKED"),
-                        "challenge 4 shows locked (" + challengeRow3?.text + ")");
+                    Require(challengeRow1 != null && challengeRow1.text.Contains("???") &&
+                            !challengeRow1.text.Contains("SEVEN NATION ARMY") &&
+                            !challengeRow1.text.Contains("LOCKED"),
+                        "challenge 2 name stays hidden (" + challengeRow1?.text + ")");
+                    Require(challengeRow2 != null && challengeRow2.text.Contains("???") &&
+                            !challengeRow2.text.Contains("SMELLS LIKE TEEN SPIRIT") &&
+                            !challengeRow2.text.Contains("LOCKED"),
+                        "challenge 3 name stays hidden (" + challengeRow2?.text + ")");
+                    Require(challengeRow3 != null && challengeRow3.text.Contains("???") &&
+                            !challengeRow3.text.Contains("BACK IN BLACK") &&
+                            !challengeRow3.text.Contains("LOCKED"),
+                        "challenge 4 name stays hidden (" + challengeRow3?.text + ")");
                     levels.HoverMenu(MenuScreen.Challenge, 1);
                     Require(levels.ChallengeMenuSelection == 1,
                         "mouse hover moves the challenge selection");
-                    levels.ActivateMenu(MenuScreen.Challenge, 2);
-                    Require(levels.State == LevelState.ChallengeSelect,
-                        "a locked challenge cannot start");
                     levels.ActivateMenu(MenuScreen.Challenge, 4);
                     Require(levels.State == LevelState.MainMenu, "back returns to the main menu");
+
+                    // The interval menu opens from the main menu and returns there.
+                    levels.HoverMenu(MenuScreen.Main, 2);
+                    Require(levels.MainMenuSelection == 2, "mouse hover selects the interval row");
+                    levels.ActivateMenu(MenuScreen.Main, 2);
+                    Require(levels.State == LevelState.IntervalMenu,
+                        "interval menu opens from the main menu");
+                    CanvasGroup intervalFromMain = GameObject.Find("IntervalMenu")?.GetComponent<CanvasGroup>();
+                    Require(intervalFromMain != null && intervalFromMain.alpha > 0.99f,
+                        "interval menu is visible from the main menu");
+                    levels.ActivateMenu(MenuScreen.Interval, ChordManager.Intervals.Length);
+                    Require(levels.State == LevelState.MainMenu,
+                        "closing the interval menu returns to the main menu");
 
                     // Free play keeps the original sandbox and the L note-mode toggle.
                     levels.ActivateMenu(MenuScreen.Main, 0);
@@ -192,6 +212,35 @@ namespace GuitarPlatformer.EditorTools
                         "E toggles the minor third");
                     Require(ChordManager.Intervals.Any(i => i.key == Key.R && i.semitones == 4),
                         "R toggles the major third");
+                    Require(ChordManager.Intervals.Length == 25, "25 intervals are available");
+                    Require(ChordManager.SimpleIntervalCount == 13, "13 simple intervals");
+                    Require(ChordManager.Intervals.Any(i => i.semitones == 13 && i.key == Key.Digit1),
+                        "1 toggles the minor ninth");
+                    Require(ChordManager.Intervals.Any(i => i.semitones == 24 && i.key == Key.Equals),
+                        "= toggles the perfect fifteenth");
+                    Require(ChordManager.Intervals.All(i => !string.IsNullOrEmpty(i.fullName)),
+                        "every interval has a full name");
+                    Require(ChordTheory.Describe(new int[0]) == "SINGLE NOTES",
+                        "no active intervals reads as single notes");
+                    Require(ChordTheory.Describe(new[] { 7 }) == "POWER CHORD",
+                        "P5 reads as a power chord");
+                    Require(ChordTheory.Describe(new[] { 4, 7 }) == "MAJOR",
+                        "M3 + P5 reads as major");
+                    Require(ChordTheory.Describe(new[] { 3, 7 }) == "MINOR",
+                        "m3 + P5 reads as minor");
+                    Require(ChordTheory.Describe(new[] { 5, 7 }) == "SUS4",
+                        "P4 + P5 reads as sus4");
+                    Require(ChordTheory.Describe(new[] { 4, 7, 10 }) == "DOMINANT 7",
+                        "M3 + P5 + m7 reads as dominant 7");
+                    Require(ChordTheory.Describe(new[] { 4, 7, 11 }) == "MAJOR 7",
+                        "M3 + P5 + M7 reads as major 7");
+                    Require(ChordTheory.Describe(new[] { 3, 7, 10 }) == "MINOR 7",
+                        "m3 + P5 + m7 reads as minor 7");
+                    Require(ChordTheory.Describe(new[] { 13 }) == "MINOR 9TH",
+                        "m9 reads as a minor ninth");
+                    Require(ChordTheory.Describe(new[] { 7, 12 }).Contains("POWER CHORD") &&
+                            ChordTheory.Describe(new[] { 7, 12 }).Contains("OCTAVE"),
+                        "P5 + octave reads as a power chord with an octave");
                     var chordKeys = ChordManager.Intervals.Select(i => i.key).ToArray();
                     Require(chordKeys.Distinct().Count() == chordKeys.Length, "chord keys are unique");
                     Require(player.RespawnBinding.Contains("backspace"),
@@ -210,8 +259,10 @@ namespace GuitarPlatformer.EditorTools
                     Require(controlsLabel != null && controlsLabel.text.Contains("M") &&
                             controlsLabel.text.Contains("N") &&
                             controlsLabel.text.Contains("palm mute") &&
-                            controlsLabel.text.Contains("mute all strings"),
-                        "controls document the mute keys");
+                            controlsLabel.text.Contains("mute all strings") &&
+                            controlsLabel.text.Contains("TAB") &&
+                            controlsLabel.text.Contains("interval selection"),
+                        "controls document the mute and interval keys");
 
                     // Right-handed layout: high E on screen-left (negative X), low E on screen-right.
                     Require(FretboardLayout.LaneX(5) < FretboardLayout.LaneX(0),
@@ -1116,8 +1167,8 @@ namespace GuitarPlatformer.EditorTools
                         "reveal prompts for the challenge menu (" + prompt?.text + ")");
                     Require(reveal != null && reveal.alpha > 0.99f, "reveal card is visible");
                     Require(levels.IsChallengeCompleted(0), "challenge 1 is marked complete");
-                    Require(levels.IsChallengeUnlocked(1), "challenge 2 unlocks after the clear");
-                    Require(!levels.IsChallengeUnlocked(2), "challenge 3 stays locked");
+                    Require(levels.IsChallengeUnlocked(1), "challenge 2 stays unlocked");
+                    Require(levels.IsChallengeUnlocked(2), "challenge 3 stays unlocked");
 
                     stage = 15;
                     stageTime = EditorApplication.timeSinceStartup;
@@ -1138,7 +1189,7 @@ namespace GuitarPlatformer.EditorTools
                         "the challenge 1 reveal returns to the challenge menu");
                     Require(levels.IsChallengeCompleted(0), "challenge 1 stays complete");
                     Require(levels.IsChallengeUnlocked(1), "challenge 2 is unlocked");
-                    Require(!levels.IsChallengeUnlocked(2), "challenge 3 is still locked");
+                    Require(levels.IsChallengeUnlocked(2), "challenge 3 is unlocked");
                     CanvasGroup challengeGroup = GameObject.Find("ChallengeMenu")?.GetComponent<CanvasGroup>();
                     Require(challengeGroup != null && challengeGroup.alpha > 0.99f,
                         "challenge select is visible");
@@ -1150,12 +1201,11 @@ namespace GuitarPlatformer.EditorTools
                     Require(row1 != null && row1.text.Contains("???") &&
                             !row1.text.Contains("SEVEN NATION ARMY"),
                         "the unlocked challenge stays unnamed (" + row1?.text + ")");
-                    Require(row2 != null && row2.text.Contains("LOCKED"),
-                        "the third challenge remains locked (" + row2?.text + ")");
+                    Require(row2 != null && row2.text.Contains("???") &&
+                            !row2.text.Contains("SMELLS LIKE TEEN SPIRIT") &&
+                            !row2.text.Contains("LOCKED"),
+                        "the uncleared challenge 3 stays unnamed (" + row2?.text + ")");
 
-                    levels.ActivateMenu(MenuScreen.Challenge, 2);
-                    Require(levels.State == LevelState.ChallengeSelect,
-                        "a locked challenge still cannot start");
                     levels.ActivateMenu(MenuScreen.Challenge, 1);
                     Require(levels.State == LevelState.Playing, "challenge 2 starts from the menu");
                     Require(levels.CurrentLevelIndex == 1, "challenge 2 is active");
@@ -1215,7 +1265,7 @@ namespace GuitarPlatformer.EditorTools
                     Require(prompt != null && prompt.text.Contains("CHALLENGE MENU"),
                         "challenge 2 reveal prompts for the menu (" + prompt?.text + ")");
                     Require(levels.IsChallengeCompleted(1), "challenge 2 is marked complete");
-                    Require(levels.IsChallengeUnlocked(2), "challenge 3 unlocks after the clear");
+                    Require(levels.IsChallengeUnlocked(2), "challenge 3 stays unlocked after the clear");
 
                     stage = 16;
                     stageTime = EditorApplication.timeSinceStartup;
@@ -1465,7 +1515,7 @@ namespace GuitarPlatformer.EditorTools
                     Require(levels.State == LevelState.ChallengeSelect,
                         "the challenge 3 reveal returns to the challenge menu");
                     Require(levels.IsChallengeCompleted(2), "challenge 3 remains complete");
-                    Require(levels.IsChallengeUnlocked(3), "challenge 4 unlocks after challenge 3");
+                    Require(levels.IsChallengeUnlocked(3), "challenge 4 stays unlocked after challenge 3");
                     Text row2 = GameObject.Find("ChallengeRow_2")?.GetComponentInChildren<Text>();
                     Text row3 = GameObject.Find("ChallengeRow_3")?.GetComponentInChildren<Text>();
                     Require(row2 != null && row2.text.Contains("SMELLS LIKE TEEN SPIRIT"),
@@ -1480,12 +1530,89 @@ namespace GuitarPlatformer.EditorTools
                     Require(levels.CurrentLevelIndex == 3, "challenge 4 is active");
                     Require(levels.CurrentLevel.Title == "Back in Black", "challenge 4 is Back in Black");
                     Require(levels.CurrentLevel.Artist == "AC/DC", "challenge 4 artist is AC/DC");
-                    Require(levels.CurrentLevel.Bpm == 92, "challenge 4 runs at 92 BPM");
-                    Require(levels.StepCount == 12, "Back in Black has 12 steps");
+                    Require(levels.CurrentLevel.Bpm == 93, "challenge 4 runs at 93 BPM");
+                    Require(levels.StepCount == 30, "Back in Black has 30 steps");
                     Require(levels.Lives == LevelManager.StartingLives, "challenge 4 starts with three lives");
                     RiffPerformanceNote[] bibNotes = RiffPerformance.Build(levels.CurrentLevel);
-                    Require(bibNotes.Length == 24, "Back in Black performance plays two cycles (24 events)");
-                    Require(levels.ReplayEventCount == 24, "Back in Black replay reports 24 events");
+                    Require(bibNotes.Length == 30, "Back in Black performance plays both phrases (30 events)");
+                    Require(levels.ReplayEventCount == 30, "Back in Black replay reports 30 events");
+                    Require(Mathf.Abs(levels.CurrentLevel.LoopLengthBeats - 17.75f) < 0.001f,
+                        "Back in Black loopback is a 16th after the walk-up");
+                    Require(levels.CurrentLevel.ReplayCycles == 1, "Back in Black plays both licks in one pass");
+                    Require(Mathf.Abs(bibNotes[0].StartBeat) < 0.001f,
+                        "Back in Black starts on beat 1");
+                    Require(Mathf.Abs(bibNotes[1].StartBeat - 1.75f) < 0.001f,
+                        "D5 group starts 1.75 beats after E5");
+                    Require(Mathf.Abs(bibNotes[4].StartBeat - 4f) < 0.001f,
+                        "A5 group starts 1.75 beats after the last D5");
+                    Require(Mathf.Abs(bibNotes[7].StartBeat - 6.25f) < 0.001f,
+                        "lick starts 1.75 beats after the last A5");
+                    Require(Mathf.Abs(bibNotes[2].StartBeat - bibNotes[1].StartBeat - 0.25f) < 0.001f &&
+                            Mathf.Abs(bibNotes[3].StartBeat - bibNotes[2].StartBeat - 0.25f) < 0.001f &&
+                            Mathf.Abs(bibNotes[5].StartBeat - bibNotes[4].StartBeat - 0.25f) < 0.001f &&
+                            Mathf.Abs(bibNotes[6].StartBeat - bibNotes[5].StartBeat - 0.25f) < 0.001f,
+                        "D5 and A5 use the same 16th down-up-down");
+                    Require(Mathf.Abs(bibNotes[1].LengthBeats - bibNotes[4].LengthBeats) < 0.001f &&
+                            Mathf.Abs(bibNotes[2].LengthBeats - bibNotes[5].LengthBeats) < 0.001f &&
+                            Mathf.Abs(bibNotes[3].LengthBeats - bibNotes[6].LengthBeats) < 0.001f,
+                        "D5 and A5 hits have matching lengths");
+                    Require(Mathf.Abs(bibNotes[6].StartBeat - 4.5f) < 0.001f,
+                        "third A5 finishes the matching down-up-down");
+                    Require(Mathf.Abs(bibNotes[1].StartBeat - bibNotes[0].StartBeat - 1.75f) < 0.001f &&
+                            Mathf.Abs(bibNotes[4].StartBeat - bibNotes[3].StartBeat - 1.75f) < 0.001f &&
+                            Mathf.Abs(bibNotes[7].StartBeat - bibNotes[6].StartBeat - 1.75f) < 0.001f,
+                        "each rest is 1.75 beats after the previous group's last hit");
+                    Require(Mathf.Abs(bibNotes[12].StartBeat - bibNotes[11].StartBeat - 0.125f) < 0.001f &&
+                            Mathf.Abs(bibNotes[13].StartBeat - bibNotes[12].StartBeat - 0.125f) < 0.001f,
+                        "bend and release run as 32nds");
+                    Require(Mathf.Abs(bibNotes[14].StartBeat - bibNotes[13].StartBeat - 0.25f) < 0.001f,
+                        "last two lick notes are a 16th apart");
+                    Require(Mathf.Abs(bibNotes[14].StartBeat - 7.75f) < 0.001f,
+                        "lick pull-off to open G lands a 16th after the release");
+                    Require(Mathf.Abs(bibNotes[15].StartBeat - 8f) < 0.001f,
+                        "second phrase starts a 16th after lick 1");
+                    Require(Mathf.Abs(bibNotes[22].StartBeat - bibNotes[21].StartBeat - 1.75f) < 0.001f &&
+                            Mathf.Abs(bibNotes[22].StartBeat - 14.25f) < 0.001f,
+                        "walk-up starts 1.75 beats after the last A5, same as lick 1");
+                    Require(Mathf.Abs(bibNotes[23].StartBeat - bibNotes[22].StartBeat - 0.25f) < 0.001f &&
+                            Mathf.Abs(bibNotes[25].StartBeat - bibNotes[24].StartBeat - 0.25f) < 0.001f &&
+                            Mathf.Abs(bibNotes[29].StartBeat - bibNotes[28].StartBeat - 0.25f) < 0.001f &&
+                            Mathf.Abs(bibNotes[24].StartBeat - bibNotes[22].StartBeat - 1f) < 0.001f,
+                        "each walk note is a 16th after its B, with B's a beat apart");
+                    Require(Mathf.Abs(bibNotes[bibNotes.Length - 1].StartBeat - 17.5f) < 0.001f,
+                        "walk-up lick ends on beat 17.5 (" +
+                        bibNotes[bibNotes.Length - 1].StartBeat.ToString("F2") + ")");
+                    Require(Mathf.Abs(levels.CurrentLevel.LoopLengthBeats - bibNotes[29].StartBeat - 0.25f) < 0.001f,
+                        "loopback uses the same 16th as the last walk note");
+                    Require(bibNotes[0].StringIndex == 0 && bibNotes[0].Fret == 0,
+                        "bar 1 opens on open low E");
+                    Require(bibNotes.Skip(1).Take(3).All(n => n.StringIndex == 2 && n.Fret == 0),
+                        "three D5 hits follow the E5 rest");
+                    Require(bibNotes.Skip(4).Take(3).All(n => n.StringIndex == 1 && n.Fret == 0),
+                        "three A5 hits follow the matching rest");
+                    Require(bibNotes[7].StringIndex == 5 && bibNotes[7].Fret == 3 &&
+                            bibNotes[8].StringIndex == 5 && bibNotes[8].Fret == 0 &&
+                            bibNotes[9].StringIndex == 4 && bibNotes[9].Fret == 3 &&
+                            bibNotes[10].StringIndex == 4 && bibNotes[10].Fret == 0 &&
+                            bibNotes[11].StringIndex == 3 && bibNotes[11].Fret == 2 &&
+                            bibNotes[12].StringIndex == 3 && bibNotes[12].Fret == 3 &&
+                            bibNotes[13].StringIndex == 3 && bibNotes[13].Fret == 2 &&
+                            bibNotes[14].StringIndex == 3 && bibNotes[14].Fret == 0,
+                        "first lick is 3p0, 3p0, 2b3r2p0 finishing with the little bend");
+                    Require(bibNotes[22].StringIndex == 1 && bibNotes[22].Fret == 2 &&
+                            bibNotes[23].StringIndex == 0 && bibNotes[23].Fret == 4 &&
+                            bibNotes[24].StringIndex == 1 && bibNotes[24].Fret == 2 &&
+                            bibNotes[25].StringIndex == 0 && bibNotes[25].Fret == 5 &&
+                            bibNotes[26].StringIndex == 1 && bibNotes[26].Fret == 2 &&
+                            bibNotes[27].StringIndex == 0 && bibNotes[27].Fret == 6 &&
+                            bibNotes[28].StringIndex == 1 && bibNotes[28].Fret == 2 &&
+                            bibNotes[29].StringIndex == 0 && bibNotes[29].Fret == 7,
+                        "second lick is the B pedal walk-up 4-5-6-7 on the low E");
+                    Require(bibNotes.Take(7).All(n => n.HasChord && n.ChordIntervals.SequenceEqual(new[] { 7 })) &&
+                            bibNotes.Skip(7).Take(8).All(n => !n.HasChord) &&
+                            bibNotes.Skip(15).Take(7).All(n => n.HasChord && n.ChordIntervals.SequenceEqual(new[] { 7 })) &&
+                            bibNotes.Skip(22).Take(8).All(n => !n.HasChord),
+                        "chord hits keep P5; both licks are single notes");
                     Require(levels.TargetTile != null && levels.TargetTile.stringIndex == 0 &&
                             levels.TargetTile.fret == 0,
                         "first Back in Black target is open low E");
@@ -1494,7 +1621,7 @@ namespace GuitarPlatformer.EditorTools
 
                     // Complete Back in Black
                     int bibGuard = 0;
-                    while (levels.State == LevelState.Playing && bibGuard++ < 24)
+                    while (levels.State == LevelState.Playing && bibGuard++ < 40)
                     {
                         NoteTile t = levels.TargetTile;
                         Require(t != null, "target exists while completing Back in Black");
@@ -1518,41 +1645,38 @@ namespace GuitarPlatformer.EditorTools
                     Require(row3 != null && row3.text.Contains("BACK IN BLACK"),
                         "the cleared challenge 4 reveals its name (" + row3?.text + ")");
 
-                    // Interval Selection Menu & Theory Presets tests
+                    // Interval Selection Menu tests
                     levels.OpenIntervalMenu();
                     Require(levels.State == LevelState.IntervalMenu, "interval menu opens");
                     Require(player.InputLocked, "interval menu freezes player input");
                     CanvasGroup intervalMenuGrp = GameObject.Find("IntervalMenu")?.GetComponent<CanvasGroup>();
                     Require(intervalMenuGrp != null && intervalMenuGrp.alpha > 0.99f,
                         "interval menu is visible");
+                    Require(GameObject.Find("IntervalRow_0") != null && GameObject.Find("IntervalRow_24") != null,
+                        "interval menu shows all 25 rows");
+                    Text intervalSummary = GameObject.Find("IntervalSummary")?.GetComponent<Text>();
+                    Require(intervalSummary != null && intervalSummary.text.Contains("SINGLE NOTES"),
+                        "interval summary starts with single notes (" + intervalSummary?.text + ")");
 
-                    // Test Power Chord preset (P5)
-                    levels.ActivateMenu(MenuScreen.Preset, 0);
-                    Require(chords.MatchesExactly(new[] { 7 }), "Power preset activates P5");
-
-                    // Test Major Chord preset (M3 + P5)
-                    levels.ActivateMenu(MenuScreen.Preset, 1);
-                    Require(chords.MatchesExactly(new[] { 4, 7 }), "Major preset activates M3 + P5");
-
-                    // Test Minor Chord preset (m3 + P5)
-                    levels.ActivateMenu(MenuScreen.Preset, 2);
-                    Require(chords.MatchesExactly(new[] { 3, 7 }), "Minor preset activates m3 + P5");
-
-                    // Test Sus4 preset (P4 + P5)
-                    levels.ActivateMenu(MenuScreen.Preset, 3);
-                    Require(chords.MatchesExactly(new[] { 5, 7 }), "Sus4 preset activates P4 + P5");
-
-                    // Test Clear preset
-                    levels.ActivateMenu(MenuScreen.Preset, 4);
-                    Require(chords.ActiveCount == 0, "Clear preset resets active intervals");
-
-                    // Test manual interval toggle in menu (toggle P5)
-                    levels.ActivateMenu(MenuScreen.Interval, 0);
+                    // Toggle P5 and M3 from the menu; the summary names the chord.
+                    int p5Index = ChordManager.IndexOf(7);
+                    int majorThirdIndex = ChordManager.IndexOf(4);
+                    levels.ActivateMenu(MenuScreen.Interval, p5Index);
                     Require(chords.MatchesExactly(new[] { 7 }), "manual interval toggle works from menu");
-                    chords.Clear();
+                    Require(intervalSummary != null && intervalSummary.text.Contains("POWER CHORD"),
+                        "interval summary names the power chord (" + intervalSummary?.text + ")");
+                    levels.ActivateMenu(MenuScreen.Interval, majorThirdIndex);
+                    Require(chords.MatchesExactly(new[] { 7, 4 }), "menu stacks the major third");
+                    Require(intervalSummary != null && intervalSummary.text.Contains("MAJOR"),
+                        "interval summary names the major chord (" + intervalSummary?.text + ")");
+                    levels.ActivateMenu(MenuScreen.Interval, majorThirdIndex);
+                    levels.ActivateMenu(MenuScreen.Interval, p5Index);
+                    Require(chords.ActiveCount == 0, "menu toggles clear the active intervals");
+                    Require(intervalSummary != null && intervalSummary.text.Contains("SINGLE NOTES"),
+                        "interval summary returns to single notes (" + intervalSummary?.text + ")");
 
                     // Close interval menu
-                    levels.ActivateMenu(MenuScreen.Interval, ChordManager.Intervals.Length + 5);
+                    levels.ActivateMenu(MenuScreen.Interval, ChordManager.Intervals.Length);
                     Require(levels.State != LevelState.IntervalMenu, "interval menu closes");
 
                     // Easy: wrong pads are disabled, but the chord rule still applies.
@@ -1607,6 +1731,19 @@ namespace GuitarPlatformer.EditorTools
                     Require(player.InputLocked, "pause freezes player input");
                     CanvasGroup pauseGroup = GameObject.Find("PauseMenu")?.GetComponent<CanvasGroup>();
                     Require(pauseGroup != null && pauseGroup.alpha > 0.99f, "pause overlay is visible");
+                    Text pauseRow3 = GameObject.Find("PauseRow_3")?.GetComponentInChildren<Text>();
+                    Require(pauseRow3 != null && pauseRow3.text == "INTERVAL SELECTION",
+                        "pause menu lists interval selection (" + pauseRow3?.text + ")");
+                    levels.HoverMenu(MenuScreen.Pause, 3);
+                    Require(levels.PauseMenuSelection == 3, "mouse hover selects the pause interval row");
+                    levels.ActivateMenu(MenuScreen.Pause, 3);
+                    Require(levels.State == LevelState.IntervalMenu,
+                        "interval menu opens from the pause menu");
+                    Require(player.InputLocked, "pause interval menu keeps player input locked");
+                    levels.ActivateMenu(MenuScreen.Interval, ChordManager.Intervals.Length);
+                    Require(levels.State == LevelState.Paused,
+                        "closing the interval menu returns to the pause overlay");
+                    Require(pauseGroup.alpha > 0.99f, "pause overlay returns after the interval menu");
                     levels.ActivateMenu(MenuScreen.Pause, 0);
                     Require(levels.State == LevelState.Playing, "resume returns to the challenge");
                     Require(!player.InputLocked, "resume restores player input");
@@ -1637,7 +1774,7 @@ namespace GuitarPlatformer.EditorTools
                               "crunchy chord-level amp, palm-muted voice, landing + walk-on notes, ghosts, " +
                               "five camera views, chord toggles, triple jump without a flip, " +
                               "boost refresh without cooldown, global palm/all-string mutes, respawn, " +
-                              "free-play landing-only toggle, main menu, challenge unlocks, hidden names, " +
+                              "free-play landing-only toggle, main menu, all challenges unlocked, hidden names, " +
                               "easy/medium/hard rules, three lives, out-of-lives restart, pause overlay, " +
                               "sample-accurate replays, same-pitch notes on other strings, mistake teleport, " +
                               "chord preview and song reveals verified.");

@@ -6,9 +6,10 @@ namespace GuitarPlatformer
 {
     /// <summary>
     /// Plays the procedural electric-guitar voice through a pool of spatial AudioSources.
-    /// Clips are cached per pitch/string and warmed a frame at a time at startup. Riff
-    /// replays are rendered into one sample-accurate clip and scheduled on a dedicated
-    /// 2D source.
+    /// A new pad attack silences any ringing voices; chord intervals stacked in the same
+    /// attack still sound together. Clips are cached per pitch/string and warmed a frame
+    /// at a time at startup. Riff replays are rendered into one sample-accurate clip
+    /// and scheduled on a dedicated 2D source.
     /// </summary>
     public class ChiptuneAudio : MonoBehaviour
     {
@@ -146,6 +147,7 @@ namespace GuitarPlatformer
         public void Play(NoteTile tile, float impact01)
         {
             if (tile == null) return;
+            StopAllVoices();
             Vector3 position = tile.transform.position + Vector3.up * 0.9f;
             float volume = Mathf.Lerp(0.62f, 1f, Mathf.Clamp01(impact01));
             PlayNote(tile.stringIndex, tile.fret, position, volume);
@@ -255,9 +257,19 @@ namespace GuitarPlatformer
         /// <summary>Short dissonant cluster used when a riff step is missed.</summary>
         public void PlayError(Vector3 position)
         {
+            StopAllVoices();
             PlayMidi(34, 0, position, 0.7f);
             PlayMidi(35, 1, position, 0.55f);
             PlayMidi(41, 2, position, 0.45f);
+        }
+
+        private void StopAllVoices()
+        {
+            if (voices == null) return;
+            for (int i = 0; i < voices.Length; i++)
+            {
+                if (voices[i] != null) voices[i].Stop();
+            }
         }
 
         private AudioSource GetVoice()

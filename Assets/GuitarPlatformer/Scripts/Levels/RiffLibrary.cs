@@ -96,36 +96,55 @@ namespace GuitarPlatformer
         }
 
         // AC/DC - Back in Black. Low E open is the safe start pad.
-        // The signature intro: E5, D5 (3 hits), A5 (3 hits), and the high turnaround lick.
-        // Open chords use the theoretical P5 voicing, and the lick notes are chord-free.
+        // Concert tempo is q=93 in 4/4. Phrase 1 and the chord hits keep the 1.75
+        // rests with D/A as 16th down-up-downs and lick 1 as 3p0 3p0 2b3r2p0.
+        // Lick 2: same 1.75 rest after the last A as lick 1, then B-pedal 4-5-6-7 with
+        // each walk note a 16th after its B.
+        // Open chords use P5; lick notes are chord-free.
         private static RiffLevel BackInBlack()
         {
-            int[] strings = { 0, 2, 2, 2, 1, 1, 1, 5, 5, 4, 4, 3 };
-            int[] frets =   { 0, 0, 0, 0, 0, 0, 0, 3, 0, 3, 0, 2 };
+            int[] strings =
+            {
+                0, 2, 2, 2, 1, 1, 1, 5, 5, 4, 4, 3, 3, 3, 3,
+                0, 2, 2, 2, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0
+            };
+            int[] frets =
+            {
+                0, 0, 0, 0, 0, 0, 0, 3, 0, 3, 0, 2, 3, 2, 0,
+                0, 0, 0, 0, 0, 0, 0, 2, 4, 2, 5, 2, 6, 2, 7
+            };
             float[] starts =
             {
-                0f, 2f, 2.5f, 3f, 4f, 4.5f, 5f, 6f, 6.25f, 6.5f, 6.75f, 7f
+                0f, 1.75f, 2f, 2.25f, 4f, 4.25f, 4.5f,
+                6.25f, 6.5f, 6.75f, 7f, 7.25f, 7.375f, 7.5f, 7.75f,
+                8f, 9.75f, 10f, 10.25f, 12f, 12.25f, 12.5f,
+                14.25f, 14.5f, 15.25f, 15.5f, 16.25f, 16.5f, 17.25f, 17.5f
             };
             float[] lengths =
             {
-                0.75f, 0.25f, 0.25f, 0.5f, 0.25f, 0.25f, 0.5f, 0.2f, 0.2f, 0.2f, 0.2f, 0.75f
+                0.2f, 0.2f, 0.2f, 0.15f, 0.2f, 0.2f, 0.15f,
+                0.2f, 0.2f, 0.2f, 0.2f, 0.12f, 0.1f, 0.1f, 0.25f,
+                0.2f, 0.2f, 0.2f, 0.15f, 0.2f, 0.2f, 0.15f,
+                0.18f, 0.18f, 0.18f, 0.18f, 0.18f, 0.18f, 0.18f, 0.22f
             };
-            bool[] muted = new bool[12];
+            bool[] muted = new bool[30];
             bool[] chordFree =
             {
-                false, false, false, false, false, false, false, true, true, true, true, true
+                false, false, false, false, false, false, false,
+                true, true, true, true, true, true, true, true,
+                false, false, false, false, false, false, false,
+                true, true, true, true, true, true, true, true
             };
 
             return new RiffLevel(
                 "Back in Black",
                 "AC/DC",
-                92,
+                93,
                 0, 0,
                 BuildSteps(strings, frets, starts, lengths, muted, chordFree),
-                9f,
+                17.75f,
                 new[] { 7 },
-                "E",
-                2);
+                "E");
         }
 
         private static RiffStep[] BuildSteps(int[] strings, int[] frets, float[] starts, float[] lengths,

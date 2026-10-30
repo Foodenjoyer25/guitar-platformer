@@ -104,11 +104,10 @@ namespace GuitarPlatformer
 
         public bool IsChallengeUnlocked(int index)
         {
-            if (levels == null || index < 0 || index >= levels.Length) return false;
-            return index == 0 || IsChallengeCompleted(index - 1);
+            return levels != null && index >= 0 && index < levels.Length;
         }
 
-        /// <summary>The name shown in menus. Locked and unfinished challenges stay hidden.</summary>
+        /// <summary>The name shown in menus. Unfinished challenges stay hidden.</summary>
         public string ChallengeDisplayName(int index)
         {
             if (levels == null || index < 0 || index >= levels.Length) return "???";
@@ -159,7 +158,7 @@ namespace GuitarPlatformer
                 if (player != null && player.LandingOnlyNotes)
                     player.SetLandingOnly(false);
 
-                if (IntervalPressed(keyboard))
+                if (IntervalPressed(keyboard, gamepad))
                 {
                     OpenIntervalMenu();
                     return;
@@ -173,7 +172,7 @@ namespace GuitarPlatformer
             switch (state)
             {
                 case LevelState.FreePlay:
-                    if (IntervalPressed(keyboard))
+                    if (IntervalPressed(keyboard, gamepad))
                     {
                         OpenIntervalMenu();
                         return;
@@ -198,7 +197,7 @@ namespace GuitarPlatformer
                     break;
 
                 case LevelState.ChallengeSelect:
-                    if (IntervalPressed(keyboard))
+                    if (IntervalPressed(keyboard, gamepad))
                     {
                         OpenIntervalMenu();
                         return;
@@ -223,10 +222,16 @@ namespace GuitarPlatformer
 
         private void HandleMainMenu(Keyboard keyboard, Gamepad gamepad)
         {
+            if (IntervalPressed(keyboard, gamepad))
+            {
+                OpenIntervalMenu();
+                return;
+            }
+
             int direction = NavigationDirection(keyboard, gamepad);
             if (direction != 0)
             {
-                mainSelection = Wrap(mainSelection + direction, 2);
+                mainSelection = Wrap(mainSelection + direction, 3);
                 if (menu != null) menu.ShowMainMenu(mainSelection);
             }
 
@@ -267,10 +272,16 @@ namespace GuitarPlatformer
                 return;
             }
 
+            if (IntervalPressed(keyboard, gamepad))
+            {
+                OpenIntervalMenu();
+                return;
+            }
+
             int direction = NavigationDirection(keyboard, gamepad);
             if (direction != 0)
             {
-                pauseSelection = Wrap(pauseSelection + direction, 3);
+                pauseSelection = Wrap(pauseSelection + direction, 4);
                 if (menu != null) menu.ShowPause(pauseSelection);
             }
 
@@ -291,7 +302,7 @@ namespace GuitarPlatformer
             {
                 case MenuScreen.Main:
                     if (state != LevelState.MainMenu) return;
-                    mainSelection = Mathf.Clamp(index, 0, 1);
+                    mainSelection = Mathf.Clamp(index, 0, 2);
                     if (menu != null) menu.ShowMainMenu(mainSelection);
                     break;
 
@@ -303,19 +314,13 @@ namespace GuitarPlatformer
 
                 case MenuScreen.Pause:
                     if (state != LevelState.Paused) return;
-                    pauseSelection = Mathf.Clamp(index, 0, 2);
+                    pauseSelection = Mathf.Clamp(index, 0, 3);
                     if (menu != null) menu.ShowPause(pauseSelection);
                     break;
 
                 case MenuScreen.Interval:
                     if (state != LevelState.IntervalMenu) return;
-                    intervalSelection = Mathf.Clamp(index, 0, ChordManager.Intervals.Length + 5);
-                    RefreshIntervalMenu();
-                    break;
-
-                case MenuScreen.Preset:
-                    if (state != LevelState.IntervalMenu) return;
-                    intervalSelection = ChordManager.Intervals.Length + Mathf.Clamp(index, 0, 4);
+                    intervalSelection = Mathf.Clamp(index, 0, ChordManager.Intervals.Length);
                     RefreshIntervalMenu();
                     break;
             }
@@ -330,6 +335,7 @@ namespace GuitarPlatformer
                     if (state != LevelState.MainMenu) return;
                     if (index == 0) EnterFreePlay();
                     else if (index == 1) EnterChallengeSelect();
+                    else if (index == 2) OpenIntervalMenu();
                     break;
 
                 case MenuScreen.Challenge:
@@ -348,6 +354,7 @@ namespace GuitarPlatformer
                     if (index == 0) ClosePause();
                     else if (index == 1) RestartChallenge();
                     else if (index == 2) EnterChallengeSelect();
+                    else if (index == 3) OpenIntervalMenu();
                     break;
 
                 case MenuScreen.Reveal:
@@ -356,15 +363,10 @@ namespace GuitarPlatformer
 
                 case MenuScreen.Interval:
                     if (state != LevelState.IntervalMenu) return;
-                    int closeIdx = ChordManager.Intervals.Length + 5;
+                    int closeIdx = ChordManager.Intervals.Length;
                     if (index == closeIdx) CloseIntervalMenu();
                     else if (index >= 0 && index < ChordManager.Intervals.Length)
                         ToggleIntervalFromMenu(index);
-                    break;
-
-                case MenuScreen.Preset:
-                    if (state != LevelState.IntervalMenu) return;
-                    ApplyPresetFromMenu(index);
                     break;
             }
         }
@@ -488,7 +490,15 @@ namespace GuitarPlatformer
             for (int i = 0; i < intervals.Length; i++)
                 active[i] = chords.IsActive(intervals[i].semitones);
 
-            menu.ShowIntervalMenu(intervalSelection, active, chords.ActiveLabel);
+            int count = chords.ActiveCount;
+            string summary = "";
+            if (count > 0)
+            {
+                string activeLabel = count <= 6 ? chords.ActiveLabel : count + " INTERVALS";
+                summary = activeLabel + "  \u00b7  " + ChordTheory.Describe(chords.ActiveSemitones);
+            }
+
+            menu.ShowIntervalMenu(intervalSelection, active, summary);
         }
 
         public void ToggleIntervalFromMenu(int index)
@@ -498,29 +508,16 @@ namespace GuitarPlatformer
             RefreshIntervalMenu();
         }
 
-        public void ApplyPresetFromMenu(int presetIndex)
-        {
-            if (chords == null) return;
-            switch (presetIndex)
-            {
-                case 0: chords.ApplyPreset(ChordManager.PresetPowerChord); break;
-                case 1: chords.ApplyPreset(ChordManager.PresetMajor); break;
-                case 2: chords.ApplyPreset(ChordManager.PresetMinor); break;
-                case 3: chords.ApplyPreset(ChordManager.PresetSus4); break;
-                case 4: chords.Clear(); break;
-            }
-            RefreshIntervalMenu();
-        }
-
         private void HandleIntervalMenu(Keyboard keyboard, Gamepad gamepad)
         {
-            if (IntervalPressed(keyboard) || BackPressed(keyboard, gamepad))
+            if (IntervalPressed(keyboard, gamepad) || BackPressed(keyboard, gamepad))
             {
                 CloseIntervalMenu();
                 return;
             }
 
-            int totalRows = ChordManager.Intervals.Length + 5 + 1;
+            int count = ChordManager.Intervals.Length;
+            int totalRows = count + 1;
             int dir = NavigationDirection(keyboard, gamepad);
             if (dir != 0)
             {
@@ -531,24 +528,28 @@ namespace GuitarPlatformer
             int hDir = HorizontalDirection(keyboard, gamepad);
             if (hDir != 0)
             {
-                if (intervalSelection < 7 && hDir > 0)
-                    intervalSelection = Mathf.Min(intervalSelection + 7, ChordManager.Intervals.Length - 1);
-                else if (intervalSelection >= 7 && intervalSelection < 13 && hDir < 0)
-                    intervalSelection = intervalSelection - 7;
-                else if (intervalSelection >= 13 && intervalSelection < 18)
-                    intervalSelection = Mathf.Clamp(intervalSelection + hDir, 13, 17);
-                RefreshIntervalMenu();
+                int simpleCount = ChordManager.SimpleIntervalCount;
+                int compoundCount = count - simpleCount;
+                if (intervalSelection < simpleCount && hDir > 0)
+                {
+                    int row = Mathf.Min(intervalSelection, compoundCount - 1);
+                    intervalSelection = simpleCount + row;
+                    RefreshIntervalMenu();
+                }
+                else if (intervalSelection >= simpleCount && intervalSelection < count && hDir < 0)
+                {
+                    int row = intervalSelection - simpleCount;
+                    intervalSelection = Mathf.Min(row, simpleCount - 1);
+                    RefreshIntervalMenu();
+                }
             }
 
             if (ConfirmPressed(keyboard, gamepad))
             {
-                int closeIndex = ChordManager.Intervals.Length + 5;
-                if (intervalSelection == closeIndex)
+                if (intervalSelection == count)
                     CloseIntervalMenu();
-                else if (intervalSelection < ChordManager.Intervals.Length)
+                else if (intervalSelection >= 0 && intervalSelection < count)
                     ToggleIntervalFromMenu(intervalSelection);
-                else
-                    ApplyPresetFromMenu(intervalSelection - ChordManager.Intervals.Length);
             }
         }
 
@@ -1114,6 +1115,7 @@ namespace GuitarPlatformer
         private void OnActiveChanged()
         {
             if (state == LevelState.Playing) UpdateChordRequirement();
+            else if (state == LevelState.IntervalMenu) RefreshIntervalMenu();
         }
 
         private void ShowBeaconTarget()
@@ -1161,9 +1163,11 @@ namespace GuitarPlatformer
             return value < 0 ? value + count : value;
         }
 
-        private static bool IntervalPressed(Keyboard keyboard)
+        private static bool IntervalPressed(Keyboard keyboard, Gamepad gamepad)
         {
-            return keyboard != null && keyboard.iKey.wasPressedThisFrame;
+            return (keyboard != null &&
+                    (keyboard.iKey.wasPressedThisFrame || keyboard.tabKey.wasPressedThisFrame)) ||
+                   (gamepad != null && gamepad.buttonWest.wasPressedThisFrame);
         }
 
         private static bool PausePressed(Keyboard keyboard, Gamepad gamepad)
