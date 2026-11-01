@@ -7,6 +7,6 @@ The movement features sprinting and a triple jump.
 You can build your chords with multiple keybinds for common intervals, or you could also use the intervals menu.
 
 Notes:
- - Challenges aren't locked to the highlighted note, the right could be any other fret of the same pitch
+ - Challenges aren't locked to the highlighted note, the right note could be on any other fret of the same pitch
  - There is a level editor in the "guitar platformer" menu in unity
  - Be wary of the requested chord in challenge mode
